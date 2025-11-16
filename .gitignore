@@ -11,3 +11,5 @@ pretrain/conf/1.pickle
 pretrain/conf/fit.log
 fine/conf/samples
 fine/conf/fit.log
+pretrain/util/__pycache__
+fine/util/__pycache__
