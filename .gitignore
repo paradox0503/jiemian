@@ -1,1 +1,13 @@
 dataset_index_isax/
+isax/cmake-build-debug/
+isax/cmake-build-release/
+isax/.idea/
+isax/build/
+pretrain/embed-output
+pretrain/conf/samples
+pretrain/conf/our_pretrain.pkl
+pretrain/conf/fit.log
+pretrain/conf/1.pickle
+pretrain/conf/fit.log
+fine/conf/samples
+fine/conf/fit.log
