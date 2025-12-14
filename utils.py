@@ -1,0 +1,86 @@
+"""
+Utilities for the Embedding + Searching Framework
+"""
+
+import os
+import subprocess
+import streamlit as st
+from pathlib import Path
+from typing import Optional
+
+
+DEFAULT_WORKSPACE = "./"
+
+
+DEFAULT_OUTPUT_FILE = "./app/data"
+
+
+def ensure_workspace(path: str) -> str:
+    """Ensure the workspace directory exists and return its absolute path."""
+    p = Path(path).expanduser().resolve()
+    p.mkdir(parents=True, exist_ok=True)
+    return str(p)
+
+
+def display_directory_tree(path: str, level: int = 0) -> None:
+    """Display a directory tree in Streamlit."""
+    try:
+        items = sorted(os.listdir(path))
+        for item in items:
+            item_path = os.path.join(path, item)
+            indent = "  " * level
+            if os.path.isdir(item_path):
+                st.write(f"{indent}📁 {item}")
+                display_directory_tree(item_path, level + 1)
+            else:
+                st.write(f"{indent}📄 {item}")
+    except PermissionError:
+        st.write(f"{'  ' * level}无权限访问")
+
+
+def select_directories(path: str, level: int = 0, selected: Optional[list] = None) -> list:
+    """Display directory tree with checkboxes for selection and return selected directories."""
+    if selected is None:
+        selected = []
+    try:
+        items = sorted(os.listdir(path))
+        for item in items:
+            item_path = os.path.join(path, item)
+            indent = "  " * level
+            if os.path.isdir(item_path):
+                checkbox_key = f"select_{item_path}"
+                is_selected = st.checkbox(f"{indent}📁 {item}", key=checkbox_key)
+                if is_selected:
+                    selected.append(item_path)
+                with st.expander(f"{indent}📁 {item} (展开查看子项)"):
+                    select_directories(item_path, level + 1, selected)
+    except PermissionError:
+        st.write(f"{indent}无权限访问")
+    return selected
+
+
+def run_shell_command(cmd: str, workdir: Optional[str] = None) -> None:
+    """Run a shell command and display output in Streamlit."""
+    st.write(f"运行命令: `{cmd}`")
+    try:
+        process = subprocess.Popen(
+            cmd,
+            shell=True,
+            cwd=workdir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            executable="/bin/bash"
+        )
+        output_container = st.empty()
+        logs = ""
+        for line in process.stdout:
+            logs += line
+            output_container.text_area("日志输出", logs, height=300)
+        process.wait()
+        if process.returncode == 0:
+            st.success("命令执行成功")
+        else:
+            st.error(f"命令执行失败，返回码: {process.returncode}")
+    except Exception as e:
+        st.error(f"执行命令出错: {e}")

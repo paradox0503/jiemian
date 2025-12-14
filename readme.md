@@ -15,3 +15,8 @@ python run.py -C conf/example.json
 make
 -选择./approx_isax
 -选择./exact_isax
+
+conda activate jlh
+streamlit run home.py --server.port 8502
+
+git remote -v

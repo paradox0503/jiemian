@@ -13,3 +13,9 @@ fine/conf/samples
 fine/conf/fit.log
 pretrain/util/__pycache__
 fine/util/__pycache__
+1output
+__pycache__
+app/
+embed/.idea
+embed/conf/samples
+fine/conf/1.pickle
