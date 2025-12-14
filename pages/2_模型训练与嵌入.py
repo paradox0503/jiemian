@@ -453,16 +453,35 @@ if mode == "预训练":
         config["encoder"] = selected_model
 
         # Decoder配置
-        use_decoder = st.toggle("是否使用 Decoder", value=config.get("use_decoder", False), key="use_decoder_toggle")
-        config["use_decoder"] = use_decoder
-        if use_decoder:
-            with st.expander("Decoder 参数调节", expanded=True):
-                decoder_param = st.slider("Decoder 参数大小", min_value=1, max_value=1000, step=1, value=config.get("decoder_param", 256), key="decoder_param_slider")
-                config["decoder_param"] = decoder_param
+        use_decoder = st.toggle(
+            "是否使用 Decoder",
+            value=config.get("decoder", False),  # 键名改为decoder，匹配JSON中的"decoder": false
+            key="use_decoder_toggle"
+        )
+        # 将切换结果赋值给config["decoder"]（键名一致）
+        config["decoder"] = use_decoder
+
+        # Decoder参数配置（仅在开启时显示）
+        # if use_decoder:
+            # with st.expander("Decoder 参数调节", expanded=True):
+                # # 读取decoder_param（如果有），默认256
+                # decoder_param = st.slider(
+                #     "Decoder 参数大小",
+                #     min_value=1,
+                #     max_value=1000,
+                #     step=1,
+                #     value=config.get("decoder_param", 256),
+                #     key="decoder_param_slider"
+                # )
+                # config["decoder_param"] = decoder_param
 
         # 课程学习配置
         use_curriculum_learning = st.toggle("是否使用课程学习", value=config.get("use_curriculum_learning", False), key="use_curriculum_learning_toggle")
         config["use_curriculum_learning"] = use_curriculum_learning
+
+        # 如果用户选择课程学习，显示提示信息
+        if use_curriculum_learning:
+            st.info("课程学习需要用户自行将数据集排序")
 
         # 配置预览与保存
         st.write("**当前配置**")

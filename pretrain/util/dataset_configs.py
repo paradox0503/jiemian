@@ -43,4 +43,4 @@ embed_CONFIGS = [
     EmbedConfig("two", "/data/user_jialinhan/jiemian/app/data/two_dataset.bin", "/data/user_jialinhan/jiemian/app/data/two_query.bin", "256", "1000", query_index_name=7),
 ]# embed_CONFIGS
 # Selected datasets for training
-SELECTED_DATASETS = [0, 1, 3, 4, 5]
+SELECTED_DATASETS = [0, 4, 5]

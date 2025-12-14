@@ -146,7 +146,7 @@ class Configuration:
         self.legals = {
             'device': {'cpu', 'cuda'},
             'encoder': {'residual', 'dense', 'gru', 'lstm', 'fdj', 'inception','transformer','timesnet'},
-            'decoder': {'residual', 'dense', 'singleresidual', 'none', 'gru', 'lstm', 'fdj', 'inception','transformer','timesnet'},
+            'decoder': {True,False},
             'activation_conv': {'relu', 'leakyrelu', 'tanh', 'lecuntanh'},
             'activation_linear': {'relu', 'leakyrelu', 'tanh', 'lecuntanh'},
             'layernorm_type': {'layernorm', 'adanorm', 'none'},

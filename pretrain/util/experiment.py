@@ -21,7 +21,7 @@ from model.builder import AEBuilder
 from util.data import TSDataset, getSamples
 from util.conf import Configuration
 from util.data import embedData
-from .dataset_configs import DATASET_CONFIGS, embed_CONFIGS
+from .dataset_configs import *
 import random
 import math
 from torch.nn import Module, PairwiseDistance
@@ -112,7 +112,7 @@ class Experiment:
                 raise ValueError('cuda is not available')
 
         # 选择数据集
-        selected_indices = self.__conf.getHP('selected_datasets')  # 假设是列表，如 [0,1,2]
+        selected_indices = SELECTED_DATASETS  # 假设是列表，如 [0,1,2]
         self.selected_dataset_configs = [DATASET_CONFIGS[i] for i in selected_indices]
         self.selected_embed_configs = [embed_CONFIGS[i] for i in selected_indices]
 
@@ -199,7 +199,7 @@ class Experiment:
 
         self.detch_query = self.__conf.getHP('train_detach_query')
 
-        self.encoder_only = self.__conf.getHP('decoder') == 'none'
+        self.encoder_only = self.__conf.getHP('decoder') == 0
         if not self.encoder_only:
             self.recons_weight = self.__conf.getHP('recons_weight')
 
@@ -356,10 +356,11 @@ class Experiment:
                 self.train_db_loader = [batches[i] for i in selected_indices]
                 self.train_query_loader1 = [batches[i] for i in selected_indices]
                 self.train_query_loader2 = [batches[i] for i in selected_indices]
-
+                max_dataset_from_file_index=max(SELECTED_DATASETS)+1
+                # print("max_dataset_from_file_index",max_dataset_from_file_index)
                 self.train_list=[]
                 self.train_query_list=[]
-                for i in range(len(self.selected_dataset_configs)):
+                for i in range(max_dataset_from_file_index):
                     self.train_list.append([])
                     self.train_query_list.append([])
                 for i in range(len(selected_indices)):

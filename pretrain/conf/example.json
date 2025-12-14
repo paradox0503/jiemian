@@ -1,18 +1,13 @@
 {
-  "selected_datasets": [
-    0,
-    1,
-    2
-  ],
   "size_train": 2000,
   "size_val": 1000,
   "size_db": 100000,
   "mode": "pretrain",
   "func_b": 0.01,
-  "output_path": "../app/pretrain",
+  "output_path": "/data/user_jialinhan/jiemian/app/data/pretrain",
   "num_epoch": 1,
   "encoder": "transformer",
-  "decoder": "none",
+  "decoder": false,
   "masking_ratio": 0.35,
   "stride": 16,
   "patch_len": 16,
