@@ -21,9 +21,12 @@ if "dataset_path_selected" not in st.session_state:
     st.session_state["dataset_path_selected"] = ""
 if "query_path_selected" not in st.session_state:
     st.session_state["query_path_selected"] = ""
+# 新增：保存数据集名称列表，确保实时更新
+if "all_dataset_names" not in st.session_state:
+    st.session_state["all_dataset_names"] = [ds.name for ds in dc.DATASET_CONFIGS]
 
-# 限定文件选择根目录
-DATA_ROOT = "./app/data"
+# 限定文件选择根目录（转为绝对路径，避免相对路径嵌套）
+DATA_ROOT = os.path.abspath("./app/data")
 # 确保目录存在
 os.makedirs(DATA_ROOT, exist_ok=True)
 
@@ -49,8 +52,8 @@ if mode == "预训练":
     else:
         config = {}
 
-    # 设置模型输出路径
-    result_model_path = "../app/pretrain"
+    # 设置模型输出路径（转为绝对路径）
+    result_model_path = os.path.abspath("./app/data/pretrain")
     config["output_path"] = result_model_path
     st.write(f"保存路径设置为: {result_model_path}")
 
@@ -58,8 +61,8 @@ if mode == "预训练":
     train_gpu_id = st.text_input("GPU ID", value=config.get("gpu_id", "0"), key="train_gpu_id")
     config["gpu_id"] = train_gpu_id
 
-    # 已有数据集选择
-    dataset_names = [ds.name for ds in dc.DATASET_CONFIGS]
+    # 已有数据集选择（使用Session State中的实时列表）
+    dataset_names = st.session_state["all_dataset_names"]
     valid_indices = [i for i in dc.SELECTED_DATASETS if isinstance(i, int) and 0 <= i < len(dc.DATASET_CONFIGS)]
     default_selected = [dc.DATASET_CONFIGS[i].name for i in valid_indices]
     selected_datasets = st.multiselect("选择训练数据集", options=dataset_names, default=default_selected, key="selected_datasets")
@@ -67,30 +70,30 @@ if mode == "预训练":
 
     # 新增数据集面板
     with st.expander("添加新数据集", expanded=False):
-        # -------------------------- 恢复：数据集名称选择（限定DATA_ROOT内文件） --------------------------
+        # -------------------------- 数据集名称选择（限定DATA_ROOT内文件） --------------------------
         name_options = [""]  # 初始化名称选项（空值为默认）
-        name_to_paths = {}   # 映射：名称 → (dataset路径, query路径)
+        name_to_paths = {}   # 映射：名称 → (dataset绝对路径, query绝对路径)
 
         # 遍历限定的DATA_ROOT文件夹，提取xxx_dataset.bin/xxx_query.bin前缀
         all_files = [f for f in os.listdir(DATA_ROOT) if os.path.isfile(os.path.join(DATA_ROOT, f))]
         dataset_files = [f for f in all_files if f.endswith("_dataset.bin")]
         query_files = [f for f in all_files if f.endswith("_query.bin")]
 
-        # 提取所有前缀名并建立路径映射
+        # 提取所有前缀名并建立绝对路径映射
         prefix_set = set()
         dataset_path_map = {}
         query_path_map = {}
 
-        # 处理dataset文件（限定DATA_ROOT，绝对路径）
+        # 处理dataset文件（直接拼接绝对路径）
         for f in dataset_files:
             prefix = f.replace("_dataset.bin", "")
             prefix_set.add(prefix)
-            dataset_path_map[prefix] = os.path.abspath(os.path.join(DATA_ROOT, f))  # 绝对路径
-        # 处理query文件（限定DATA_ROOT，绝对路径）
+            dataset_path_map[prefix] = os.path.join(DATA_ROOT, f)  # 绝对路径拼接
+        # 处理query文件（直接拼接绝对路径）
         for f in query_files:
             prefix = f.replace("_query.bin", "")
             prefix_set.add(prefix)
-            query_path_map[prefix] = os.path.abspath(os.path.join(DATA_ROOT, f))  # 绝对路径
+            query_path_map[prefix] = os.path.join(DATA_ROOT, f)  # 绝对路径拼接
 
         # 构建名称选项和路径映射
         name_options = sorted(list(prefix_set))
@@ -99,12 +102,12 @@ if mode == "预训练":
             query_path = query_path_map.get(name, "")
             name_to_paths[name] = (dataset_path, query_path)
 
-        # ========== 恢复：数据集名称选择框 ==========
+        # 数据集名称选择框
         selected_name = st.selectbox(
             "数据集名称（仅显示./app/data内bin文件前缀）",
-            options=[""] + name_options,  # 空值允许手动输入
+            options=[""] + name_options,
             key="new_dataset_name_select",
-            # 选择名称后自动填充路径到Session State
+            # 选择名称后自动填充绝对路径到Session State
             on_change=lambda: st.session_state.update({
                 "dataset_name_selected": st.session_state["new_dataset_name_select"],
                 "dataset_path_selected": name_to_paths.get(st.session_state["new_dataset_name_select"], ("", ""))[0],
@@ -112,7 +115,7 @@ if mode == "预训练":
             })
         )
 
-        # ========== 恢复：手动输入名称逻辑 ==========
+        # 手动输入名称逻辑
         if selected_name == "":
             manual_name = st.text_input("手动输入数据集名称", key="manual_dataset_name")
             final_name = manual_name
@@ -120,155 +123,151 @@ if mode == "预训练":
             final_name = selected_name
             st.session_state["dataset_name_selected"] = final_name
 
-        # -------------------------- 路径选择逻辑（保留之前的修复） --------------------------
-        # 获取DATA_ROOT内的所有.bin文件（仅显示该目录下的文件，绝对路径映射）
+        # -------------------------- 仅保留下拉框选择路径（核心修复：绝对路径） --------------------------
+        # 获取DATA_ROOT内的所有.bin文件（仅保留纯文件名，用于下拉框显示）
         bin_files = glob.glob(os.path.join(DATA_ROOT, "*.bin"))
-        bin_file_names = [os.path.basename(f) for f in bin_files]
-        # 映射：文件名→绝对路径
+        bin_file_names = [os.path.basename(f) for f in bin_files]  # 纯文件名（如 two_dataset.bin）
+
+        # 映射：纯文件名 → 绝对路径（关键修复：避免路径嵌套）
         bin_file_map = {os.path.basename(f): os.path.abspath(f) for f in bin_files}
 
-        # 数据集路径选择（仅显示./app/data内的.bin文件）
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            dataset_path = st.text_input(
-                "数据集路径（xxx_dataset.bin）",
-                value=st.session_state["dataset_path_selected"],
-                key="dataset_path_input",
-                placeholder="仅可选择./app/data内的.bin文件",
-                disabled=False
-            )
-            # 手动输入路径转为绝对路径
-            if dataset_path:
-                dataset_path = os.path.abspath(dataset_path)
-                st.session_state["dataset_path_selected"] = dataset_path
-        with col2:
-            # 下拉选择框（仅显示./app/data内的.bin文件）
-            dataset_file_selector = st.selectbox(
-                "选择数据集文件",
-                options=[""] + bin_file_names,
-                key="dataset_file_selector",
-                label_visibility="collapsed"
-            )
-            if dataset_file_selector != "":
-                # 强制限定为DATA_ROOT内的文件路径（绝对路径）
-                selected_dataset_path = os.path.abspath(bin_file_map[dataset_file_selector])
-                st.session_state["dataset_path_selected"] = selected_dataset_path
-                dataset_path = selected_dataset_path
+        # 筛选出dataset和query类型的文件（用于下拉框分类）
+        dataset_bin_files = [f for f in bin_file_names if f.endswith("_dataset.bin")]
+        query_bin_files = [f for f in bin_file_names if f.endswith("_query.bin")]
 
-        # 查询集路径选择（仅显示./app/data内的.bin文件）
-        col3, col4 = st.columns([3, 1])
-        with col3:
-            query_path = st.text_input(
-                "查询集路径（xxx_query.bin）",
-                value=st.session_state["query_path_selected"],
-                key="query_path_input",
-                placeholder="仅可选择./app/data内的.bin文件",
-                disabled=False
-            )
-            # 手动输入路径转为绝对路径
-            if query_path and query_path != "":
-                query_path = os.path.abspath(query_path)
-                st.session_state["query_path_selected"] = query_path
-        with col4:
-            # 下拉选择框（仅显示./app/data内的.bin文件）
-            query_file_selector = st.selectbox(
-                "选择查询集文件",
-                options=[""] + bin_file_names,
-                key="query_file_selector",
-                label_visibility="collapsed"
-            )
-            if query_file_selector != "":
-                # 强制限定为DATA_ROOT内的文件路径（绝对路径）
-                selected_query_path = os.path.abspath(bin_file_map[query_file_selector])
-                st.session_state["query_path_selected"] = selected_query_path
-                query_path = selected_query_path
+        # ========== 数据集路径：仅下拉选择（绝对路径） ==========
+        st.markdown("#### 数据集文件选择（仅可选择./app/data内的_dataset.bin文件）")
+        # 自动选中名称对应的dataset文件（如果存在）
+        default_dataset_idx = 0
+        if st.session_state["dataset_path_selected"]:
+            selected_dataset_filename = os.path.basename(st.session_state["dataset_path_selected"])
+            if selected_dataset_filename in dataset_bin_files:
+                default_dataset_idx = dataset_bin_files.index(selected_dataset_filename) + 1  # +1 因为第一个选项是空值
 
-        # 校验路径（此时dataset_path是绝对路径，校验逻辑一致）
-        DATA_ROOT_ABS = os.path.abspath(DATA_ROOT)  # 预计算绝对路径
-        if dataset_path and not dataset_path.startswith(DATA_ROOT_ABS):
-            st.error(f"数据集路径必须在 {DATA_ROOT} 目录下！")
+        dataset_file_selector = st.selectbox(
+            "选择数据集文件（xxx_dataset.bin）",
+            options=[""] + dataset_bin_files,  # 仅显示纯文件名
+            key="dataset_file_selector",
+            index=default_dataset_idx
+        )
+        # 更新路径状态（直接取绝对路径）
+        if dataset_file_selector != "":
+            dataset_path = bin_file_map[dataset_file_selector]  # 绝对路径
+            st.session_state["dataset_path_selected"] = dataset_path
+        else:
             dataset_path = ""
-        if query_path and query_path != "" and not query_path.startswith(DATA_ROOT_ABS):
-            st.error(f"查询集路径必须在 {DATA_ROOT} 目录下！")
+
+        # ========== 查询集路径：仅下拉选择（绝对路径） ==========
+        st.markdown("#### 查询集文件选择（仅可选择./app/data内的_query.bin文件）")
+        # 自动选中名称对应的query文件（如果存在）
+        default_query_idx = 0
+        if st.session_state["query_path_selected"]:
+            selected_query_filename = os.path.basename(st.session_state["query_path_selected"])
+            if selected_query_filename in query_bin_files:
+                default_query_idx = query_bin_files.index(selected_query_filename) + 1  # +1 因为第一个选项是空值
+
+        query_file_selector = st.selectbox(
+            "选择查询集文件（xxx_query.bin）",
+            options=[""] + query_bin_files,  # 仅显示纯文件名
+            key="query_file_selector",
+            index=default_query_idx
+        )
+        # 更新路径状态（直接取绝对路径）
+        if query_file_selector != "":
+            query_path = bin_file_map[query_file_selector]  # 绝对路径
+            st.session_state["query_path_selected"] = query_path
+        else:
             query_path = ""
+
+        # 显示当前选中的绝对路径（供用户确认）
+        if dataset_path:
+            st.info(f"当前选中数据集绝对路径：{dataset_path}")
+        if query_path:
+            st.info(f"当前选中查询集绝对路径：{query_path}")
 
         # 其他配置项
         new_size_query = st.number_input("查询集大小", value=1000, key="new_size_query")
         new_dim_seq = st.number_input("序列维度", value=256, key="new_dim_seq")
 
-        # 新增数据集按钮逻辑
+        # 新增数据集按钮逻辑（写入绝对路径）
         if st.button("添加新数据集", key="add_new_dataset"):
-            if not final_name or not dataset_path:
-                st.error("请填写数据集名称和数据集路径！")
-            elif not dataset_path.startswith(os.path.abspath(DATA_ROOT)):
-                st.error(f"数据集路径必须在 {DATA_ROOT} 目录下！")
-            elif query_path != "" and not query_path.startswith(os.path.abspath(DATA_ROOT)):
-                st.error(f"查询集路径必须在 {DATA_ROOT} 目录下！")
+            if not final_name:
+                st.error("请填写/选择数据集名称！")
+            elif not dataset_path:
+                st.error("请选择数据集文件（xxx_dataset.bin）！")
             else:
-                dataset_config_path = dc.__file__
-                try:
-                    # 读取配置文件内容
-                    with open(dataset_config_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
+                # 路径校验（绝对路径直接校验）
+                if not dataset_path.startswith(DATA_ROOT):
+                    st.error(f"数据集路径必须在 {DATA_ROOT} 目录下！")
+                elif query_path and not query_path.startswith(DATA_ROOT):
+                    st.error(f"查询集路径必须在 {DATA_ROOT} 目录下！")
+                else:
+                    dataset_config_path = dc.__file__
+                    try:
+                        # 单次读取配置文件
+                        with open(dataset_config_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
 
-                    # -------------------------- DatasetConfig 新增逻辑 --------------------------
-                    # 查找最大index_name
-                    import re
-                    indices = re.findall(r'index_name=\s*(\d+)', content)
-                    max_index = max([int(i) for i in indices]) if indices else -1
-                    new_index = max_index + 1
+                        # -------------------------- 1. 修改DatasetConfig（写入绝对路径） --------------------------
+                        import re
+                        # 查找最大index_name
+                        indices = re.findall(r'index_name=\s*(\d+)', content)
+                        max_index = max([int(i) for i in indices]) if indices else -1
+                        new_index = max_index + 1
 
-                    # 构建新的DatasetConfig行
-                    new_config_line = (
-                        f'    DatasetConfig("{final_name}", "{dataset_path}", {new_dim_seq}, '
-                        f'size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name={new_index})'
-                    )
+                        # 构建新的DatasetConfig行（填充绝对路径）
+                        new_config_line = (
+                            f'    DatasetConfig("{final_name}", "{dataset_path}", {new_dim_seq}, '
+                            f'size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name={new_index})'
+                        )
 
-                    # 插入到DATASET_CONFIGS列表末尾
-                    marker = "]# DATASET_CONFIGS"
-                    insert_pos = content.rfind(marker)
-                    if insert_pos != -1:
-                        before = content[:insert_pos].rstrip()
-                        after = content[insert_pos:]
-                        if not before.endswith(","):
-                            before += ","
-                        new_content = before + "\n" + new_config_line + "\n" + after
+                        # 插入到DATASET_CONFIGS列表末尾
+                        marker = "]# DATASET_CONFIGS"
+                        insert_pos = content.rfind(marker)
+                        if insert_pos != -1:
+                            before = content[:insert_pos].rstrip()
+                            after = content[insert_pos:]
+                            if not before.endswith(","):
+                                before += ","
+                            content = before + "\n" + new_config_line + "\n" + after  # 更新content变量
+
+                        # -------------------------- 2. 修改EmbedConfig（写入绝对路径） --------------------------
+                        # 查找最大query_index_name
+                        query_indices = re.findall(r'query_index_name=\s*(\d+)', content)
+                        max_query_index = max([int(i) for i in query_indices]) if query_indices else -1
+                        new_query_index = max_query_index + 1
+
+                        # 构建新的EmbedConfig行（填充绝对路径）
+                        new_embed_line = (
+                            f'    EmbedConfig("{final_name}", "{dataset_path}", "{query_path}", "{new_dim_seq}", '
+                            f'"{new_size_query}", query_index_name={new_query_index})'
+                        )
+
+                        # 插入到embed_CONFIGS列表末尾
+                        embed_marker = "]# embed_CONFIGS"
+                        embed_insert_pos = content.rfind(embed_marker)
+                        if embed_insert_pos != -1:
+                            before_embed = content[:embed_insert_pos].rstrip()
+                            after_embed = content[embed_insert_pos:]
+                            if not before_embed.endswith(","):
+                                before_embed += ","
+                            content = before_embed + "\n" + new_embed_line + "\n" + after_embed  # 再次更新content
+
+                        # 单次写入文件（保存绝对路径）
                         with open(dataset_config_path, 'w', encoding='utf-8') as f:
-                            f.write(new_content)
+                            f.write(content)
 
-                    # -------------------------- EmbedConfig 新增逻辑 --------------------------
-                    # 查找最大query_index_name
-                    query_indices = re.findall(r'query_index_name=\s*(\d+)', content)
-                    max_query_index = max([int(i) for i in query_indices]) if query_indices else -1
-                    new_query_index = max_query_index + 1
+                        # 更新Session State，同步数据集列表
+                        st.session_state["all_dataset_names"].append(final_name)
+                        st.success(f"新数据集 '{final_name}' 已成功添加！写入的绝对路径：{dataset_path}")
 
-                    # 构建新的EmbedConfig行
-                    new_embed_line = (
-                        f'    EmbedConfig("{final_name}", "{dataset_path}", "{query_path}", "{new_dim_seq}", '
-                        f'"{new_size_query}", query_index_name={new_query_index})'
-                    )
+                        # 重置状态
+                        st.session_state["dataset_name_selected"] = ""
+                        st.session_state["dataset_path_selected"] = ""
+                        st.session_state["query_path_selected"] = ""
 
-                    # 插入到embed_CONFIGS列表末尾
-                    embed_marker = "]# embed_CONFIGS"
-                    embed_insert_pos = content.rfind(embed_marker)
-                    if embed_insert_pos != -1:
-                        before_embed = content[:embed_insert_pos].rstrip()
-                        after_embed = content[embed_insert_pos:]
-                        if not before_embed.endswith(","):
-                            before_embed += ","
-                        new_content = before_embed + "\n" + new_embed_line + "\n" + after_embed
-                        with open(dataset_config_path, 'w', encoding='utf-8') as f:
-                            f.write(new_content)
-
-                    st.success(f"新数据集 '{final_name}' 已成功添加！")
-                    # 重置状态
-                    st.session_state["dataset_name_selected"] = ""
-                    st.session_state["dataset_path_selected"] = ""
-                    st.session_state["query_path_selected"] = ""
-                    dataset_names.append(final_name)
-
-                except Exception as e:
-                    st.error(f"添加数据集失败：{str(e)}")
+                    except Exception as e:
+                        st.error(f"添加数据集失败：{str(e)}")
 
     # 保存数据集选择
     if st.button("保存数据集选择", key="save_dataset_selection"):

@@ -20,3 +20,4 @@ conda activate jlh
 streamlit run home.py --server.port 8502
 
 git remote -v
+git branch

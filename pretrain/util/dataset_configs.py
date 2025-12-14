@@ -35,7 +35,9 @@ DATASET_CONFIGS = [
     DatasetConfig("origin", "/data/user_jialinhan/process_data_get_record/build/data/origin-dataset.bin", 256, size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name=4),
     DatasetConfig("sald", "/data/user_jialinhan/process_data_get_record/build/data/sald-dataset.bin", 128, size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name=5),
     DatasetConfig("seismic", "/data/user_jialinhan/process_data_get_record/build/data/seismic-dataset.bin", 256, size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name=6),
-    DatasetConfig("0", "/data/user_jialinhan/0kechegnxuexi/Transnet-pretrain-cl/conf/our_pretrain.pkl", 256, size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name=7)
+    DatasetConfig("0", "/data/user_jialinhan/0kechegnxuexi/Transnet-pretrain-cl/conf/our_pretrain.pkl", 256, size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name=7),
+    DatasetConfig("one", "./app/data/./app/data/two_dataset.bin", 256, size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name=10),
+    DatasetConfig("two", "/data/user_jialinhan/jiemian/app/data/two_dataset.bin", 256, size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name=11)
 ]# DATASET_CONFIGS
 
 embed_CONFIGS = [
@@ -47,7 +49,10 @@ embed_CONFIGS = [
     EmbedConfig("sald", "data_big/sald-dataset.bin", "data_big/sald-query.bin", 128, 1000,query_index_name=5),
     EmbedConfig("seismic", "data_big/seismic-dataset.bin", "data_big/seismic-query.bin", 256, 1000,query_index_name=6),
     EmbedConfig("0", "/data/user_jialinhan/0kechegnxuexi/Transnet-pretrain-cl/conf/our_pretrain.pkl", "/data/user_jialinhan/0kechegnxuexi/Transnet-pretrain-cl/conf/our_pretrain.pkl", "256", "1000", query_index_name=7),
-    EmbedConfig("one", "/data/user_jialinhan/jiemian/app/data/two_dataset.bin", "/data/user_jialinhan/jiemian/app/data/two_query.bin", "256", "1000", query_index_name=8)
+    EmbedConfig("one", "/data/user_jialinhan/jiemian/app/data/two_dataset.bin", "/data/user_jialinhan/jiemian/app/data/two_query.bin", "256", "1000", query_index_name=8),
+    EmbedConfig("two", "/data/user_jialinhan/jiemian/app/data/two_dataset.bin", "/data/user_jialinhan/jiemian/app/data/two_query.bin", "256", "1000", query_index_name=9),
+    EmbedConfig("one", "./app/data/./app/data/two_dataset.bin", "./app/data/./app/data/two_query.bin", "256", "1000", query_index_name=10),
+    EmbedConfig("two", "/data/user_jialinhan/jiemian/app/data/two_dataset.bin", "/data/user_jialinhan/jiemian/app/data/two_query.bin", "256", "1000", query_index_name=11)
 ]# embed_CONFIGS
 
 # Selected datasets for training
