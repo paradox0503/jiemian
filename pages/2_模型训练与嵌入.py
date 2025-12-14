@@ -180,10 +180,10 @@ if mode == "预训练":
             query_path = ""
 
         # 显示当前选中的绝对路径（供用户确认）
-        if dataset_path:
-            st.info(f"当前选中数据集绝对路径：{dataset_path}")
-        if query_path:
-            st.info(f"当前选中查询集绝对路径：{query_path}")
+        # if dataset_path:
+        #     st.info(f"当前选中数据集绝对路径：{dataset_path}")
+        # if query_path:
+        #     st.info(f"当前选中查询集绝对路径：{query_path}")
 
         # 其他配置项
         new_size_query = st.number_input("查询集大小", value=1000, key="new_size_query")
