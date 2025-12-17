@@ -479,15 +479,35 @@ if mode == "预训练":
         use_curriculum_learning = st.toggle("是否使用课程学习", value=config.get("use_curriculum_learning", False), key="use_curriculum_learning_toggle")
         config["use_curriculum_learning"] = use_curriculum_learning
 
+
         # 如果用户选择课程学习，显示提示信息
         if use_curriculum_learning:
             st.info("课程学习需要用户自行将数据集排序")
 
         # 配置预览与保存
         st.write("**当前配置**")
-        selected_keys = ['encoder', 'num_epoch', 'decoder_param', 'use_curriculum_learning']
+        selected_keys = ['num_epoch', 'masking_ratio', 'stride', 'patch_len', 'd_model', 'nhead', 'num_encoder_layers', 'dim_feedforward', 'first_dim']
         filtered_config = {k: config.get(k, '') for k in selected_keys}
         config_json = st.text_area("配置 JSON", value=json.dumps(filtered_config, indent=2), height=150, key="train_config_json")
+
+
+        # 修改滑动条为指数间隔，便于选择小的参数
+        import numpy as np
+
+        # 定义指数间隔的选项
+        func_a_values = np.logspace(-5, 1, num=1000)
+        func_b_values = np.logspace(-5, 1, num=1000)
+
+        func_a = st.select_slider("func_a 参数", options=func_a_values, value=1e-3)
+        func_b = st.select_slider("func_b 参数", options=func_b_values, value=1e-3)
+
+        # 将 func_a 和 func_b 添加到 config 中
+        config["func_a"] = float(func_a)
+        config["func_b"] = float(func_b)
+
+        # 将 func_a 和 func_b 的值打印到页面上，便于用户查看
+        st.write(f"当前 func_a 值: {func_a:.5e}")
+        st.write(f"当前 func_b 值: {func_b:.5e}")
 
         if st.button("确定", key="update_train_config"):
             try:
@@ -581,3 +601,4 @@ elif mode == "嵌入":
             f"python isax/run.py -C {conf_path}"
         )
         run_shell_command(cmd, workdir="./")
+
