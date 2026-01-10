@@ -1,4 +1,9 @@
 # coding = utf-8
+import sys
+import os
+# 获取项目根目录（jiemian/）
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.append(root_dir)
 
 import sys
 import argparse
@@ -9,7 +14,7 @@ from util.conf import Configuration
 
 def main(argv):
     parser = argparse.ArgumentParser(description='Command-line parameters for Indexing Embedding experiments')
-    
+
     parser.add_argument('-C', '--conf', type=str, required=True, dest='confpath', help='path of conf file')
     parser.add_argument('-E', '--embed', default=False, dest='to_embed', action='store_true', help='whether to embed database/query')
 
@@ -22,11 +27,10 @@ def main(argv):
 
     experiment = Experiment(conf)
     experiment.run()
-  
+
     # print(experiment.train_db_loader(0).shape)
 
 
 
 if __name__ == "__main__":
     main(sys.argv)
-    

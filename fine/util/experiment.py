@@ -25,41 +25,12 @@ from util.data import embedData
 import random
 import math
 from torch.nn import Module, PairwiseDistance
+from pretrain.util.dataset_configs import *
 
-class DatasetConfig:
-    def __init__(self, name, path_db, dim_seq, size_train, size_val, size_db):
-        self.name = name
-        self.path_db = path_db
-        self.dim_seq = dim_seq
-        self.size_train = size_train
-        self.size_val = size_val
-        self.size_db = size_db
-class EmbedConfig:
-    def __init__(self, name, dataset_path,query_path, dim_seq, size_query):
-        self.name = name
-        self.dataset_path = dataset_path
-        self.query_path=query_path
-        self.dim_seq = dim_seq
-        self.size_query = size_query
-DATASET_CONFIGS = [
-    DatasetConfig("Astro00", "/data/user_jialinhan/data_big/astro-dataset.bin", 256, 2000, 1000, 100000),
-    # DatasetConfig("Deep1B", "/data/user_jialinhan/data_big/deep1b-dataset.bin", 96, 200000, 10000, 100000000),
-    # DatasetConfig("F5", "/data/user_jialinhan/data_big/F5-dataset.bin", 256, 200000, 10000, 100000000),
-    # DatasetConfig("F10", "/data/user_jialinhan/data_big/F10-dataset.bin", 256, 200000, 10000, 100000000),
-    # DatasetConfig("origin", "/data/user_jialinhan/data_big/origin-dataset.bin", 256, 200000, 10000, 100000000),
-    # DatasetConfig("sald", "/data/user_jialinhan/data_big/sald-dataset.bin", 128, 200000, 10000, 100000000),
-    # DatasetConfig("seismic", "/data/user_jialinhan/data_big/seismic-dataset.bin", 256, 200000, 10000, 100000000)
-]
-embed_CONFIGS = [    #   database path                                               query path
-    EmbedConfig("astro", "data_big/astro-dataset.bin",    "data_big/astro-query.bin",256,100),
-    # EmbedConfig("deep1b", "data_big/deep1b-dataset.bin",    "data_big/deep1b-query.bin",96,1000),
-    # EmbedConfig("F5", "data_big/F5-dataset.bin",    "data_big/F5-query.bin",256,1000),
-    # EmbedConfig("F10", "data_big/F10-dataset.bin",    "data_big/F10-query.bin",256,1000),
-    # EmbedConfig("origin", "data_big/origin-dataset.bin",    "data_big/origin-query.bin",256,1000),
-    # EmbedConfig("sald", "data_big/sald-dataset.bin",    "data_big/sald-query.bin",128,1000),
-    # EmbedConfig("seismic", "data_big/seismic-dataset.bin",    "data_big/seismic-query.bin",256,1000),
-    ]
-
+chosen_one=FINE_SELECTED_DATASETS[0]
+print("chosen_one dataset index:", chosen_one)
+DATASET_CONFIGS = [DATASET_CONFIGS[chosen_one]]
+embed_CONFIGS = [embed_CONFIGS[chosen_one]]
 class Experiment:
     def __init__(self, conf: Configuration):
         self.__conf = conf
@@ -218,7 +189,7 @@ class Experiment:
 
         self.detch_query = self.__conf.getHP('train_detach_query')
 
-        self.encoder_only = self.__conf.getHP('decoder') == 'none'
+        self.encoder_only = self.__conf.getHP('decoder')== 0
         if not self.encoder_only:
             self.recons_weight = self.__conf.getHP('recons_weight')
 

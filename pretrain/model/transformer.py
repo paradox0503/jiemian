@@ -480,7 +480,9 @@ class TransformerDecoderModel(nn.Module):
         # print("!!_____in_the_decoder______!!")
         # print("!!_________________________!!")
         # print("embed:", embed.shape)
-        embed = self.pos_decoder(embed * math.sqrt(self.dim_embedding))
+        embed=embed * math.sqrt(self.dim_embedding)
+        embed = self.pos_decoder(embed)
+
         # print("embed_pe:", embed.shape)
         embed = self.linear0(embed)
         # print("embed_linear:", embed.shape)

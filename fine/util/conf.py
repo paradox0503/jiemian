@@ -6,7 +6,7 @@ import os
 from os.path import basename
 import json
 import platform
-from datetime import date
+from datetime import datetime
 from typing import Union, List
 from pathlib import Path
 
@@ -50,7 +50,7 @@ class Configuration:
             'dim_coconut': 16,
             'size_db': 10000000,
             'size_query': 1000,
-            'size_train': 200000,
+            'size_train': 20000,
             'size_val': 10000,
             'size_batch': 256,
             'size_kernel': 3,
@@ -146,7 +146,7 @@ class Configuration:
         self.legals = {
             'device': {'cpu', 'cuda'},
             'encoder': {'residual', 'dense', 'gru', 'lstm', 'fdj', 'inception','transformer','timesnet'},
-            'decoder': {'residual', 'dense', 'singleresidual', 'none', 'gru', 'lstm', 'fdj', 'inception','transformer','timesnet'},
+            'decoder': {True,False},
             'activation_conv': {'relu', 'leakyrelu', 'tanh', 'lecuntanh'},
             'activation_linear': {'relu', 'leakyrelu', 'tanh', 'lecuntanh'},
             'layernorm_type': {'layernorm', 'adanorm', 'none'},
@@ -218,13 +218,21 @@ class Configuration:
 
 
 
-    def __setup(self, existing: bool = False) -> None:
-        if existing:
-            result_root = str(Path(self.getHP('conf_path')).parent)#"conf_path": "conf/example.json",也就是conf文件夹
-        else:
-            result_root = os.path.join(os.getcwd(), self.getHP('name'))
-            os.makedirs(result_root, exist_ok=True)
 
+    def __setup(self, existing: bool = False) -> None:
+        sampling_code = self.getHP('sampling_name')
+        if sampling_code == 'coconut':
+            sampling_code += ('-' + str(self.getHP('dim_coconut')))
+
+        if existing:
+            result_root = os.path.join(str(Path(self.getHP('output_path'))), f"pretrain_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            print("existing result_root:",result_root)
+            os.makedirs(result_root, exist_ok=True)
+        else:
+            result_root = os.path.join(os.getcwd(), f"{self.getHP('name')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            print("new result_root:",result_root)
+
+            os.makedirs(result_root, exist_ok=True)
 
 
         if self.getHP('log_filepath') == 'default':
@@ -236,7 +244,7 @@ class Configuration:
             log_filename = self.getHP('log_filename')
 
             if log_filename == 'default':
-                log_filename = 'fit.log'
+                log_filename = f'fit.log'
 
             log_filepath = os.path.join(log_folder, log_filename)
 

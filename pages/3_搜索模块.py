@@ -12,7 +12,6 @@ st.title("搜索模块")
 
 """Handle the search tab."""
 st.subheader("搜索模块")
-search_gpu_id = st.text_input("NVIDIA 卡号（搜索）", value="0", key="search_gpu_id")
 embeddings_file = st.text_input(
     "已有 Embeddings 文件",
     value="",

@@ -569,6 +569,7 @@ elif mode == "微调":
     st.subheader("微调配置")
     config_file = "conf/example.json"
     full_config_path = os.path.abspath(os.path.join("fine", config_file))
+    print("ts",full_config_path)
 
     if os.path.exists(full_config_path):
         try:
@@ -585,25 +586,140 @@ elif mode == "微调":
         st.session_state["fine_model_path"] = config.get("pkl_file", "")
     if "fine_gpu_id" not in st.session_state:
         st.session_state["fine_gpu_id"] = config.get("gpu_id", "0")
+    if "fine_dim_series" not in st.session_state:
+        st.session_state["fine_dim_series"] = config.get("dim_series", 256)
+    if "fine_decoder" not in st.session_state:
+        st.session_state["fine_decoder"] = config.get("decoder", "none")
+    if "fine_encoder" not in st.session_state:
+        st.session_state["fine_encoder"] = config.get("encoder", "transformer")
+    if "fine_epoch" not in st.session_state:
+        st.session_state["fine_epoch"] = config.get("fine_epoch", 1)
 
     # 微调配置项
     fine_model_path = st.text_input("模型路径（微调）", value=st.session_state["fine_model_path"], key="fine_model_path_input")
-    fine_gpu_id = st.text_input("NVIDIA 卡号（微调）", value=st.session_state["fine_gpu_id"], key="fine_gpu_id_input")
     config["pkl_file"] = fine_model_path
+    fine_gpu_id = st.text_input("NVIDIA 卡号（微调）", value=st.session_state["fine_gpu_id"], key="fine_gpu_id_input")
     config["gpu_id"] = fine_gpu_id
+    fine_dim_series = st.number_input("序列维度（微调）", value=st.session_state["fine_dim_series"], key="fine_dim_series_input")
+    config["dim_series"] = fine_dim_series
+    # 选择 使用Decoder或者不使用Decoder
+                # Decoder配置
+    fine_use_decoder = st.toggle(
+        "是否使用 Decoder（微调）",
+        value=config.get("decoder", False),  # 键名改为decoder，匹配JSON中的"decoder": false
+        key="fine_use_decoder_toggle"
+    )
+    # 将切换结果赋值给config["decoder"]（键名一致）
+    config["decoder"] = fine_use_decoder
+    # 选择 Encoder
+    fine_encoder = st.selectbox(
+        "选择 Encoder（微调）",
+        options=["transformer", "timemixer", "timesnet"],
+        index=["transformer", "timemixer", "timesnet"].index(st.session_state   ["fine_encoder"]) if st.session_state["fine_encoder"] in ["transformer", "timemixer", "timesnet"] else 0,
+        key="fine_encoder_select"
+    )
+    config["encoder"] = fine_encoder
+    fine_epoch = st.number_input("微调轮数", value=st.session_state["fine_epoch"], key="fine_epoch_input")
+    config["fine_epoch"] = fine_epoch
+
+    # 数据集选择区域
+    st.markdown("---")
+    st.markdown('<div class="section-title">数据集选择</div>', unsafe_allow_html=True)
+
+    # 获取数据集列表
+    dataset_names = st.session_state.get("all_dataset_names", [])
+
+    if not dataset_names:
+        st.warning("暂无可用数据集，请先在预训练模式中添加数据集！")
+    else:
+        # 筛选有效的索引（原逻辑保留）
+        valid_indices = []
+        if dc and hasattr(dc, 'SELECTED_DATASETS') and hasattr(dc, 'DATASET_CONFIGS'):
+            valid_indices = [
+                i for i in dc.SELECTED_DATASETS
+                if isinstance(i, int) and 0 <= i < len(dc.DATASET_CONFIGS)
+            ]
+
+        # 调整默认值：单选需要单个值
+        default_selected_list = []
+        if dc and hasattr(dc, 'DATASET_CONFIGS'):
+            default_selected_list = [
+                dc.DATASET_CONFIGS[i].name
+                for i in valid_indices
+                if i < len(dc.DATASET_CONFIGS)
+            ]
+
+        print("default_selected_list:", default_selected_list)
+
+        # 单选默认值：有默认列表则取第一个，否则取第一个数据集名称
+        default_selected = ""
+        if default_selected_list:
+            default_selected = default_selected_list[0]
+        elif dataset_names:
+            default_selected = dataset_names[0]
+
+        print("default_selected:", default_selected)
+
+
+
+
+        if "FINE_SELECTED_DATASETS" not in st.session_state:
+            st.session_state["FINE_SELECTED_DATASETS"] = default_selected
+
+        # 数据集单选框
+        selected_dataset = st.selectbox(
+            "选择微调数据集",
+            options=dataset_names,
+            index=dataset_names.index(st.session_state["FINE_SELECTED_DATASETS"])
+            if st.session_state["FINE_SELECTED_DATASETS"] in dataset_names else 0,
+            key="FINE_SELECTED_DATASETS",
+            disabled=not dataset_names,
+            help="选择用于微调的数据集"
+        )
+
+        # 计算选中的单个索引
+        selected_index = None
+        if dataset_names and selected_dataset in dataset_names:
+            selected_index = dataset_names.index(selected_dataset)
+            # 将选中的数据集索引保存到配置中
+            config["selected_dataset_index"] = selected_index
+
+        print("selected_index:", selected_index)
+        st.info(f"当前选中数据集：{selected_dataset} (索引：{selected_index})")
+
+    st.markdown('</div>', unsafe_allow_html=True)  # 关闭卡片
 
     # 保存微调配置
     if st.button("保存微调配置", key="save_fine_config"):
         with open(full_config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2)
-        st.success(f"配置已保存到 {full_config_path}")
+        # 同时更新dc中的FINE_SELECTED_DATASETS
+        if selected_index is not None:
+            dataset_config_path = dc.__file__
+            try:
+                with open(dataset_config_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                import re
+                new_line = f"FINE_SELECTED_DATASETS = [{selected_index}]"
+                new_content = re.sub(r'FINE_SELECTED_DATASETS\s*=\s*\[.*?\]', new_line, content, flags=re.DOTALL)
+                with open(dataset_config_path, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+                st.success(f"配置已保存到 {full_config_path}，并更新了数据集配置")
+            except Exception as e:
+                st.error(f"更新数据集配置失败: {e}")
+        else:
+            st.success(f"配置已保存到 {full_config_path}")
 
+
+
+# 然后执行脚本
     # 开始微调
     if st.button("开始微调", key="start_fine_tuning"):
         cmd = (
             "cd fine && "
             f"export CUDA_VISIBLE_DEVICES={fine_gpu_id} && "
-            f"python run.py -C {config_file} && "
+            f"export PYTHONPATH=/data/user_jialinhan/jiemian:$PYTHONPATH && "
+            f"python /data/user_jialinhan/jiemian/fine/run.py -C {config_file} && "
             "cd .."
         )
         run_shell_command(cmd, workdir="./")
@@ -611,28 +727,149 @@ elif mode == "微调":
 # 嵌入模式
 elif mode == "嵌入":
     st.subheader("嵌入配置")
-    embed_model_path = st.text_input("用于嵌入的模型路径", value="", key="embed_model_path")
-    embed_gpu_id = st.text_input("NVIDIA 卡号（嵌入）", value="0", key="embed_gpu_id")
+    config_file = "conf/example.json"
+    full_config_path = os.path.abspath(os.path.join("fine", config_file))
+    print("ts",full_config_path)
 
-    if st.button("生成 Embeddings", key="generate_embeddings"):
-        output_dir = st.session_state.get('output_dir', "./")
-        conf_dir = ensure_workspace(os.path.join(output_dir, "conf"))
-        conf_path = os.path.join(conf_dir, "embedding.json")
-        config = {
-            "model_path": embed_model_path,
-            "gpu_id": embed_gpu_id,
-            "mode": "embed"
-        }
-        with open(conf_path, "w", encoding="utf-8") as f:
+    if os.path.exists(full_config_path):
+        try:
+            with open(full_config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        except json.JSONDecodeError:
+            st.warning(f"配置文件 {full_config_path} 无效，使用默认配置")
+            config = {}
+    else:
+        config = {}
+
+    # 初始化Session State
+    if "embed_model_path" not in st.session_state:
+        st.session_state["embed_model_path"] = config.get("pkl_file", "")
+    if "embed_gpu_id" not in st.session_state:
+        st.session_state["embed_gpu_id"] = config.get("gpu_id", "0")
+    if "embed_dim_series" not in st.session_state:
+        st.session_state["embed_dim_series"] = config.get("dim_series", 256)
+    if "embed_decoder" not in st.session_state:
+        st.session_state["embed_decoder"] = config.get("decoder", "none")
+    if "embed_encoder" not in st.session_state:
+        st.session_state["embed_encoder"] = config.get("encoder", "transformer")
+    if "embed_epoch" not in st.session_state:
+        st.session_state["embed_epoch"] = config.get("fine_epoch", 1)
+    # 微调配置项
+    embed_model_path = st.text_input("模型路径（嵌入）", value=st.session_state["embed_model_path"], key="embed_model_path_input")
+    config["pkl_file"] = embed_model_path
+    embed_gpu_id = st.text_input("NVIDIA 卡号（嵌入）", value=st.session_state["embed_gpu_id"], key="embed_gpu_id_input")
+    config["gpu_id"] = embed_gpu_id
+    embed_dim_series = st.number_input("序列维度（嵌入）", value=st.session_state["embed_dim_series"], key="embed_dim_series_input")
+    config["dim_series"] = embed_dim_series
+    # 选择 Encoder
+    embed_encoder = st.selectbox(
+        "选择 Encoder（嵌入）",
+        options=["transformer", "timemixer", "timesnet"],
+        index=["transformer", "timemixer", "timesnet"].index(st.session_state   ["embed_encoder"]) if st.session_state["embed_encoder"] in ["transformer", "timemixer", "timesnet"] else 0,
+        key="embed_encoder_select"
+    )
+    config["encoder"] = embed_encoder
+    embed_epoch = 0
+    config["embed_epoch"] = embed_epoch
+
+    # 数据集选择区域
+    st.markdown("---")
+    st.markdown('<div class="section-title">数据集选择</div>', unsafe_allow_html=True)
+
+    # 获取数据集列表
+    dataset_names = st.session_state.get("all_dataset_names", [])
+
+    if not dataset_names:
+        st.warning("暂无可用数据集，请先在预训练模式中添加数据集！")
+    else:
+        # 筛选有效的索引（原逻辑保留）
+        valid_indices = []
+        if dc and hasattr(dc, 'SELECTED_DATASETS') and hasattr(dc, 'DATASET_CONFIGS'):
+            valid_indices = [
+                i for i in dc.SELECTED_DATASETS
+                if isinstance(i, int) and 0 <= i < len(dc.DATASET_CONFIGS)
+            ]
+
+        # 调整默认值：单选需要单个值
+        default_selected_list = []
+        if dc and hasattr(dc, 'DATASET_CONFIGS'):
+            default_selected_list = [
+                dc.DATASET_CONFIGS[i].name
+                for i in valid_indices
+                if i < len(dc.DATASET_CONFIGS)
+            ]
+
+        print("default_selected_list:", default_selected_list)
+
+        # 单选默认值：有默认列表则取第一个，否则取第一个数据集名称
+        default_selected = ""
+        if default_selected_list:
+            default_selected = default_selected_list[0]
+        elif dataset_names:
+            default_selected = dataset_names[0]
+
+        print("default_selected:", default_selected)
+
+
+
+
+        if "FINE_SELECTED_DATASETS" not in st.session_state:
+            st.session_state["FINE_SELECTED_DATASETS"] = default_selected
+
+        # 数据集单选框
+        selected_dataset = st.selectbox(
+            "选择嵌入数据集",
+            options=dataset_names,
+            index=dataset_names.index(st.session_state["FINE_SELECTED_DATASETS"])
+            if st.session_state["FINE_SELECTED_DATASETS"] in dataset_names else 0,
+            key="FINE_SELECTED_DATASETS",
+            disabled=not dataset_names,
+            help="选择用于嵌入的数据集"
+        )
+
+        # 计算选中的单个索引
+        selected_index = None
+        if dataset_names and selected_dataset in dataset_names:
+            selected_index = dataset_names.index(selected_dataset)
+            # 将选中的数据集索引保存到配置中
+            config["selected_dataset_index"] = selected_index
+
+        print("selected_index:", selected_index)
+        st.info(f"当前选中数据集：{selected_dataset} (索引：{selected_index})")
+
+    st.markdown('</div>', unsafe_allow_html=True)  # 关闭卡片
+
+    # 保存嵌入配置
+    if st.button("保存嵌入配置", key="save_embed_config"):
+        with open(full_config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2)
-        st.success(f"配置文件已保存：{conf_path}")
+        # 同时更新dc中的FINE_SELECTED_DATASETS
+        if selected_index is not None:
+            dataset_config_path = dc.__file__
+            try:
+                with open(dataset_config_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                import re
+                new_line = f"FINE_SELECTED_DATASETS = [{selected_index}]"
+                new_content = re.sub(r'FINE_SELECTED_DATASETS\s*=\s*\[.*?\]', new_line, content, flags=re.DOTALL)
+                with open(dataset_config_path, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+                st.success(f"配置已保存到 {full_config_path}，并更新了数据集配置")
+            except Exception as e:
+                st.error(f"更新数据集配置失败: {e}")
+        else:
+            st.success(f"配置已保存到 {full_config_path}")
 
+
+
+# 然后执行脚本
+    # 开始微调
+    if st.button("开始微调", key="start_embed_tuning"):
         cmd = (
-            f"source ~/.bashrc && "
-            f"conda activate jlh && "
+            "cd fine && "
             f"export CUDA_VISIBLE_DEVICES={embed_gpu_id} && "
-            f"export LD_LIBRARY_PATH=/mnt/data/user_liangzhiyu/envs/jlh/lib:$LD_LIBRARY_PATH && "
-            f"python isax/run.py -C {conf_path}"
+            f"export PYTHONPATH=/data/user_jialinhan/jiemian:$PYTHONPATH && "
+            f"python /data/user_jialinhan/jiemian/fine/run.py -C {config_file} && "
+            "cd .."
         )
         run_shell_command(cmd, workdir="./")
-
