@@ -1,28 +1,52 @@
-cmake_minimum_required(VERSION 3.23)
-project(bsax)
+# cmake_minimum_required(VERSION 3.16)
+# project(dids)
 
+# set(CMAKE_CXX_STANDARD 14)
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -mavx2 -pthread -fopenmp")
+# set(CMAKE_BUILD_TYPE Release)
+
+# FIND_PACKAGE(OpenMP REQUIRED)
+# add_compile_options(-fopenmp)
+
+# add_executable(example example.cpp random_data.cpp)
+# target_link_libraries(example tcmalloc gsl)
+
+
+cmake_minimum_required(VERSION 3.16)
+project(dids)
+
+# 设置 C++ 标准
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -mavx2 -pthread -fopenmp")
-FIND_PACKAGE( OpenMP REQUIRED)
-if (OPENMP_FOUND)
-    message("OPENMP FOUND")
+
+# 添加编译选项
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -pthread -fopenmp")
+
+# 设置构建类型为 Release
+set(CMAKE_BUILD_TYPE Release)
+
+# 查找 OpenMP 并启用
+find_package(OpenMP REQUIRED)
+if (OpenMP_FOUND)
+    add_compile_options(-fopenmp)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
-add_compile_options(-fopenmp)
 
-# 给之后所有声明executable和library都能用include内的.h文件
-include_directories(./sax/include)
-include_directories(./util)
+# 添加 TCMalloc 库路径
+link_directories(/usr/lib/x86_64-linux-gnu)
 
-add_subdirectory(sax)   # 添加子目录sax,运行子目录的cmake,拿到子目录声明的sax
-add_subdirectory(util)
-add_subdirectory(i_binary)
+# 添加可执行文件
+add_executable(index index.cpp random_data.cpp)
+add_executable(search search.cpp random_data.cpp)
 
-# add_executable(test_sax test_sax.cpp)
-# target_link_libraries(test_sax sax)
+# 手动指定 TCMalloc 库文件路径
+target_link_libraries(search
+    /usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4  # 直接指定库文件路径
+    gsl
+    ${OpenMP_CXX_FLAGS}
+)
 
-# add_executable(test_isax test/test_isax.cpp)
-add_executable(approx_isax test/approximate_search.cpp)
-add_executable(exact_isax test/exact_search.cpp)
-target_link_libraries(approx_isax i_binary sax util tcmalloc)
-target_link_libraries(exact_isax i_binary sax util tcmalloc)
-
+target_link_libraries(index
+    /usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4  # 直接指定库文件路径
+    gsl
+    ${OpenMP_CXX_FLAGS}
+)

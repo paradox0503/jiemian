@@ -445,22 +445,22 @@ class Experiment:
 
         #-------------------------------------------------------------------------------
 
-        if self.__conf.getHP('to_embed')=="nono":
-            for i in range(len(self.selected_embed_configs)):
-                print("query")
-                main_path=self.__conf.getHP('main_path')
-                result_path=self.__conf.getHP('result_path')
-                query_path=os.path.abspath(main_path+self.selected_embed_configs[i].query_path)
-                query_embed_path=os.path.abspath(result_path+self.selected_embed_configs[i].name+"-query.bin")
-                database_path=os.path.abspath(main_path+self.selected_embed_configs[i].dataset_path)
-                database_embed_path=os.path.abspath(result_path+self.selected_embed_configs[i].name+"-database.bin")
-                embedData(self.model, query_path, query_embed_path,
-                        self.selected_embed_configs[i].size_query, batch_size=self.__conf.getHP('embed_batch'), original_dim=self.selected_embed_configs[i].dim_seq,
-                        embedded_dim=self.__conf.getHP('dim_embedding'), device=self.device, encoder=self.__conf.getHP('encoder'))
-                print("database")
-                embedData(self.model, database_path, database_embed_path,
-                        self.selected_dataset_configs[i].size_db, batch_size=self.__conf.getHP('embed_batch'), original_dim=self.selected_embed_configs[i].dim_seq,
-                        embedded_dim=self.__conf.getHP('dim_embedding'), device=self.device, encoder=self.__conf.getHP('encoder'))
+        for i in range(len(self.selected_embed_configs)):
+            print("query")
+            main_path=self.__conf.getHP('main_path')
+            result_path=self.__conf.getHP('result_path')
+            query_path=os.path.abspath(main_path+self.selected_embed_configs[i].query_path)
+            query_embed_path=os.path.abspath(result_path+"/"+self.selected_embed_configs[i].name+"-query.bin")
+            # print("tests:path:",query_embed_path)
+            database_path=os.path.abspath(main_path+self.selected_embed_configs[i].dataset_path)
+            database_embed_path=os.path.abspath(result_path+"/"+self.selected_embed_configs[i].name+"-database.bin")
+            embedData(self.model, query_path, query_embed_path,
+                    self.selected_embed_configs[i].size_query, batch_size=self.__conf.getHP('embed_batch'), original_dim=self.selected_embed_configs[i].dim_seq,
+                    embedded_dim=self.__conf.getHP('dim_embedding'), device=self.device, encoder=self.__conf.getHP('encoder'))
+            print("database")
+            embedData(self.model, database_path, database_embed_path,
+                    self.selected_dataset_configs[i].size_db, batch_size=self.__conf.getHP('embed_batch'), original_dim=self.selected_embed_configs[i].dim_seq,
+                    embedded_dim=self.__conf.getHP('dim_embedding'), device=self.device, encoder=self.__conf.getHP('encoder'))
 
 
     def __model_change(self):

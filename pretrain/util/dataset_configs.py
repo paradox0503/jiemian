@@ -44,4 +44,4 @@ embed_CONFIGS = [
 ]# embed_CONFIGS
 # Selected datasets for training
 SELECTED_DATASETS = [0, 4, 5]
-FINE_SELECTED_DATASETS = [1]
+FINE_SELECTED_DATASETS = [0]

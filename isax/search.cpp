@@ -1,0 +1,126 @@
+#include "DIDS/dids_factory.hpp"
+#include "random_data.h"
+#include <iostream>
+#include <vector>
+#include <cstdio>
+#include <fstream>
+#include <iomanip>
+// #include <windows.h>
+#include <utility>
+#include <string>
+#include <filesystem>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <string_view> // 需包含此头文件
+using namespace std;
+
+// 函数：将搜索结果写入文件
+// 修改 writeResultsToFile 函数，添加一个控制是否覆盖的参数
+void writeResultsToFile(size_t i,const std::string& filename, const std::vector<std::pair<float, uint64_t>>& results,
+                       const std::string& dataset, bool overwrite = false) {
+    string subfolder = "1stBSF";
+    mkdir(subfolder.c_str(), 0777);
+
+    // 根据 overwrite 标志决定打开模式
+    std::ios_base::openmode mode = std::ios::out;
+    if (overwrite) {
+        mode |= std::ios::trunc;  // 覆盖模式
+    } else {
+        mode |= std::ios::app;    // 追加模式
+    }
+
+    std::ofstream outFile(subfolder + "/" + filename, mode);
+    if (!outFile.is_open()) {
+        std::cerr << "无法打开文件 " << filename << " 进行写入操作。" << std::endl;
+        return;
+    }
+    outFile << std::fixed << std::setprecision(4);
+    for (const auto& result : results) {
+        outFile <<i<< "," << result.second << "," << result.first << std::endl;
+    }
+    outFile.close();
+}
+
+#define DATA_NAME "astro"
+constexpr uint64_t query_num = 100;
+constexpr uint64_t ts_length = 256U;
+int main() {
+    const uint64_t k = 10;
+    const string data_name = DATA_NAME;  // 运行时使用宏定义初始化
+    static const std::string origin_input_directory = "/data/user_jialinhan/data_big/";
+    static const std::string origin_query_directory = "/data/user_jialinhan/data_big/";
+    static const std::string embed_input_directory = "/data/user_jialinhan/SEAnet-main-yuanban/SEAnet/";
+    static const std::string embed_query_directory = "/data/user_jialinhan/SEAnet-main-yuanban/SEAnet/";
+    // /data/user_jialinhan/Transnet-fine/fine-1
+    // static const std::string embed_input_directory = "/data/user_jialinhan/Transnet-fine/fine-1/";
+    // static const std::string embed_query_directory = "/data/user_jialinhan/Transnet-fine/fine-1/";
+    // 定义常量
+    const string input_filename = origin_input_directory + data_name+"-dataset.bin"; // 数据集路径
+    const string emb_input_filename = embed_input_directory +data_name+ "-database.bin"; // 数据集路径
+    const string query_filename = origin_query_directory +data_name+ "-query.bin"; // 查询文件的路径
+    const string emb_query_filename = embed_query_directory +data_name+ "-query.bin"; // 查询文件的路径
+    const string output_directory = "./"+data_name+"_index/";
+    const uint64_t sax_length = 16;
+    const uint64_t ts_num = 100000;
+
+
+    // 加载查询数据
+    FILE* query_file = fopen(query_filename.c_str(), "rb");
+    if (!query_file) {
+        cerr << "Failed to open query file: " << query_filename << endl;
+        return -1;
+    }
+    FILE* emb_query_file = fopen(emb_query_filename.c_str(), "rb");
+    if (!emb_query_file) {
+        cerr << "Failed to open query file: " << emb_query_filename << endl;
+        return -1;
+    }
+
+    // 读取所有查询数据
+    vector<vector<float>> queries(query_num, vector<float>(ts_length));
+    for (uint64_t i = 0; i < query_num; ++i) {
+        size_t read_count = fread(static_cast<void*>(queries[i].data()), sizeof(float), ts_length, query_file);
+        if (read_count != ts_length) {
+            cerr << "Failed to read query data at index " << i << endl;
+            fclose(query_file);
+            return -1;
+        }
+    }
+    fclose(query_file);
+
+    vector<vector<float>> emb_queries(query_num, vector<float>(sax_length));
+    for (uint64_t i = 0; i < query_num; ++i) {
+        size_t read_count = fread(static_cast<void*>(emb_queries[i].data()), sizeof(float), sax_length, emb_query_file);
+        if (read_count != sax_length) {
+            cerr << "Failed to read query data at index " << i << endl;
+            fclose(emb_query_file);
+            return -1;
+        }
+    }
+    fclose(emb_query_file);
+
+    // 加载 DIDS 索引
+    auto dids_index = dids::DIDSFactory<ts_length, sax_length>::createFromIndex(data_name, output_directory);
+    vector<int32_t> search_nums = {-1};
+
+    // 对每种搜索节点数量执行搜索
+    for (int32_t search_max_num : search_nums) {
+        std::string filename_e = data_name + ".txt";
+        bool isFirstWrite = true;
+        for (size_t i = 0; i < queries.size(); ++i) {
+            string subfolder ="1stBSF";
+            mkdir(subfolder.c_str(), 0777) ;
+            const auto& query = queries[i];
+            const auto& emb_query = emb_queries[i];
+            auto appro_ans = dids_index->approximateSearch((void*)query.data(),(void*)emb_query.data(), k, 10,search_max_num);
+            // 首次写入时覆盖，之后追加
+            writeResultsToFile(i,filename_e, appro_ans, data_name, isFirstWrite);
+            // 写入一次后将标志位设为 false
+            isFirstWrite = false;
+        }
+    }
+
+    // 释放资源
+    delete dids_index;
+    return 0;
+}

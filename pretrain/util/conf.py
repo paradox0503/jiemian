@@ -225,7 +225,7 @@ class Configuration:
             sampling_code += ('-' + str(self.getHP('dim_coconut')))
 
         if existing:
-            result_root = os.path.join(str(Path(self.getHP('output_path'))), f"pretrain_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            result_root = os.path.join(str(Path(self.getHP('output_path'))))
             print("existing result_root:",result_root)
             os.makedirs(result_root, exist_ok=True)
         else:

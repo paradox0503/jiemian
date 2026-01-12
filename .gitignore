@@ -3,6 +3,10 @@ isax/cmake-build-debug/
 isax/cmake-build-release/
 isax/.idea/
 isax/build/
+isax_old/cmake-build-debug/
+isax_old/cmake-build-release/
+isax_old/.idea/
+isax_old/build/
 pretrain/embed-output
 pretrain/conf/samples
 pretrain/conf/our_pretrain.pkl
