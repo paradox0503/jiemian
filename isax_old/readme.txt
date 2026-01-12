@@ -1,1 +1,0 @@
-每一个文件都是一个对比方法，具体的使用样例参考实验代码exp文件和test中的文件，数据集和其他事项前往论文的github网站获取https://github.com/imarcher/DIDS
