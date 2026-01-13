@@ -26,7 +26,7 @@ def modify_nth_line(file_path, n, new_content, line_start=1):
 
     # 检查行号是否有效
     if line_index < 0 or line_index >= len(lines):
-        print(f"错误：行号{n}超出文件范围（1-{len(lines)}）")
+        print(f"error: line number {n} out of range (1-{len(lines)})")
         return False
 
     # 修改指定行
@@ -39,7 +39,29 @@ def modify_nth_line(file_path, n, new_content, line_start=1):
     return True
 # st.set_page_config(page_title="索引模块", layout="wide")
 # st.title("索引模块")
-st.subheader("Indexing")
+# st.subheader("")
+st.markdown(
+    """
+<style>
+.stApp { background-color: #f7f9fc; }
+.center-btn { display:flex; justify-content:center; margin: 18px 0 12px 0; }
+
+/* black bordered boxes: st.container(border=True) */
+div[data-testid="stContainer"][data-border="true"]{
+  border: 2px solid #222 !important;
+  border-radius: 0px !important;
+  background: white !important;
+  padding: 12px !important;
+  min-height: 240px;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+st.title("Indexing")
+#### -0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0
+st.markdown("---")
+st.header("Load target data series collection")
 with st.expander("Load target data series collection", expanded=False):
     # 256维原始数据集输入框
     v_original = st.text_input(
@@ -53,17 +75,26 @@ with st.expander("Load target data series collection", expanded=False):
         key="Load target embed data series collection",
         value="/data/user_jialinhan/SEAnet-main-yuanban/SEAnet/astro.bin"
     )
-index_method = st.selectbox(
-    "Indexing method",
-    options=['iSAX', 'DIDS', 'Dumpy'],
-    key="index_method"
-)
+#### -0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0
+st.markdown("---")
+st.header("Select approximation method/model")#Select indexing method
 Select_approximation_method_or_model=["PAA","DFT","SPARTAN","SEANet","GPT4TS","TimeLLM","UniTime","AutoTimes","S2IPLLM", "AGENDA"]
 Select_approximation_method_or_model_value= st.selectbox(
-    "Select approximation method/model",
+    "",
     options=Select_approximation_method_or_model,
     key="Select approximation method or model"
 )
+#### -0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0
+st.markdown("---")
+st.header("Select indexing method")#
+
+index_method = st.selectbox(
+    "",
+    options=['iSAX', 'DIDS', 'Dumpy'],
+    key="index_method"
+)
+#### -0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0
+
 if Select_approximation_method_or_model_value in ["SEANet","GPT4TS","TimeLLM","UniTime","AutoTimes","S2IPLLM", "AGENDA"]:
     v_model_path = st.text_input(
         label="Model path",
@@ -72,7 +103,10 @@ if Select_approximation_method_or_model_value in ["SEANet","GPT4TS","TimeLLM","U
     )
 if index_method=='iSAX':
     txt_path="/data/user_jialinhan/jiemian/isax/index.txt"
-    with st.expander("Configuration", expanded=False):
+    ####-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0
+    st.markdown("---")
+    st.header("Configuration")#
+    with st.expander("", expanded=False):
         # v = st.text_input("query_num",key="query_num",value="100")
         # modify_nth_line(txt_path, 1, v)
         # v = st.text_input("k",    key="k",value="1")
@@ -100,8 +134,8 @@ if index_method=='iSAX':
 else:
     pass
 
-
-if st.button("Start Indexing", key="start_search"):
+st.markdown("---")
+if st.button("Start Indexing", key="start_search", type="primary"):
     if index_method=='iSAX':
 
         cmd = (

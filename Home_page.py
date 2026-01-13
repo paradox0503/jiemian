@@ -16,8 +16,9 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+st.markdown("---")
 
-# st.write("请使用左侧导航栏选择功能页面。")
+st.write("Please use the navigation bar on the left to select a feature page.")
 
 # Set default workspace
 if 'workspace' not in st.session_state:

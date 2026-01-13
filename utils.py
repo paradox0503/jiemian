@@ -35,7 +35,7 @@ def display_directory_tree(path: str, level: int = 0) -> None:
             else:
                 st.write(f"{indent}📄 {item}")
     except PermissionError:
-        st.write(f"{'  ' * level}无权限访问")
+        st.write(f"{'  ' * level}No permission to access")
 
 
 def select_directories(path: str, level: int = 0, selected: Optional[list] = None) -> list:
@@ -52,16 +52,16 @@ def select_directories(path: str, level: int = 0, selected: Optional[list] = Non
                 is_selected = st.checkbox(f"{indent}📁 {item}", key=checkbox_key)
                 if is_selected:
                     selected.append(item_path)
-                with st.expander(f"{indent}📁 {item} (展开查看子项)"):
+                with st.expander(f"{indent}📁 {item} (Expand to view sub-items)"):
                     select_directories(item_path, level + 1, selected)
     except PermissionError:
-        st.write(f"{indent}无权限访问")
+        st.write(f"{indent}No permission to access")
     return selected
 
 
 def run_shell_command(cmd: str, workdir: Optional[str] = None) -> None:
     """Run a shell command and display output in Streamlit."""
-    st.write(f"运行命令: `{cmd}`")
+    # st.write(f"运行命令: `{cmd}`")
     try:
         process = subprocess.Popen(
             cmd,
@@ -76,11 +76,11 @@ def run_shell_command(cmd: str, workdir: Optional[str] = None) -> None:
         logs = ""
         for line in process.stdout:
             logs += line
-            output_container.text_area("日志输出", logs, height=300)
+            output_container.text_area("log output", logs, height=300)
         process.wait()
         if process.returncode == 0:
-            st.success("命令执行成功")
+            st.success("success")
         else:
-            st.error(f"命令执行失败，返回码: {process.returncode}")
+            st.error(f"failed: {process.returncode}")
     except Exception as e:
-        st.error(f"执行命令出错: {e}")
+        st.error(f"failed to execute command: {e}")

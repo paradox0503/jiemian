@@ -1,5 +1,5 @@
 """
-Search Page
+Similarity_search Page
 """
 
 import streamlit as st
@@ -16,7 +16,7 @@ def plot_basic_line_chart(list1,list2,list3):
         "distance": list3
     })
     # # 显示数据表格
-    with st.expander("📋 查看数据"):
+    with st.expander(""):
         st.dataframe(chart_data)
 
 def modify_nth_line(file_path, n, new_content, line_start=1):
@@ -38,7 +38,7 @@ def modify_nth_line(file_path, n, new_content, line_start=1):
 
     # 检查行号是否有效
     if line_index < 0 or line_index >= len(lines):
-        print(f"错误：行号{n}超出文件范围（1-{len(lines)}）")
+        print(f"error: line number {n} out of range (1-{len(lines)})")
         return False
 
     # 修改指定行
@@ -49,11 +49,31 @@ def modify_nth_line(file_path, n, new_content, line_start=1):
         f.writelines(lines)
 
     return True
-st.set_page_config(page_title="搜索模块", layout="wide")
-st.title("搜索模块")
+st.set_page_config(page_title="Similarity Search Module", layout="wide")
+st.markdown(
+    """
+<style>
+.stApp { background-color: #f7f9fc; }
+.center-btn { display:flex; justify-content:center; margin: 18px 0 12px 0; }
 
-st.subheader("搜索模块")
-st.subheader("Searching")
+/* black bordered boxes: st.container(border=True) */
+div[data-testid="stContainer"][data-border="true"]{
+  border: 2px solid #222 !important;
+  border-radius: 0px !important;
+  background: white !important;
+  padding: 12px !important;
+  min-height: 240px;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+st.title("Similarity Search Module")
+# # st.subheader("Similarity_search Module")
+# st.subheader("Searching")
+####-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0
+st.markdown("---")
+st.header("Load queries")#
 with st.expander("Load target data series collection", expanded=False):
     # 256维原始数据集输入框
     v_original = st.text_input(
@@ -68,20 +88,26 @@ with st.expander("Load target data series collection", expanded=False):
         value="/data/user_jialinhan/SEAnet-main-yuanban/SEAnet/astro_query.bin"
     )
 # Load index
+####-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0
+st.markdown("---")
+st.header("Load Index")#Configuration
 Load_index= st.selectbox(
-    "Load index",
+    "Load Index of one dataset",
     options=['astro', 'deep1b', 'sald'],
     key="Load index already"
 )
 
 index_method = st.selectbox(
-    "搜索算法",
+    "Search Algorithm",
     options=['iSAX', 'DIDS', 'Dumpy'],
     key="index_method"
 )
 if index_method=='iSAX':
     txt_path="/data/user_jialinhan/jiemian/isax/search.txt"
-    with st.expander("Configuration", expanded=False):
+    ####-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0
+    st.markdown("---")
+    st.header("Configuration")#
+    with st.expander("", expanded=False):
         v = st.text_input("query_num",key="query_num",value="100")
         modify_nth_line(txt_path, 1, v)
         v = st.text_input("k",    key="k",value="1")
@@ -98,12 +124,15 @@ if index_method=='iSAX':
         v = st.text_input("ts_length",      key="ts_length",value="256")
         modify_nth_line(txt_path, 6, v)
         v = st.text_input("max_search_leaf_nodes_num",      key="max_search_leaf_nodes_num",value="500")
-
-
 else:
     pass
+st.markdown("---")
 
-if st.button("开始搜索", key="start_search"):
+buttonn=st.button("start searching", key="start_search", type="primary")
+
+# st.markdown("---")
+st.header("Query answers")#
+if buttonn:
     if index_method=='iSAX':
         cmd = (
             f"cd /data/user_jialinhan/jiemian/isax/build && "
