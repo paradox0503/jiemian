@@ -1,11 +1,6 @@
-"""
-Training and Embedding Page (Pre-training UI)
-✅ 仅改右侧主页面布局 + 增加“Load from file / Manual configuration”模式
-- Load from file：上传 JSON，直接覆盖 config（并同步到 JSON 预览框）
-- Manual configuration：显示两个 slider（patch length P、embedding length l）
-  其他参数仍用 JSON text_area（你可以只用默认值演示，也可以连后端）
-"""
 
+
+import numpy as np
 import pandas as pd
 import streamlit as st
 import json
@@ -24,12 +19,38 @@ from utils import ensure_workspace, run_shell_command, display_directory_tree, D
 
 
 # =========================
-# 1) 数据集上传器（保留原逻辑）
+# 0) 样式 & 页面总标题
 # =========================
 st.markdown("""
-    <h2 style='text-align: center; color: #000000;'> Load data series collections</h2>
-    <hr style='border:1px solid #000000;'>
+<style>
+/* 页面背景 */
+.stApp { background-color: #f7f9fc; }
+h1 { font-weight: 700; }
+
+.center-btn{
+  display:flex;
+  justify-content:center;
+  margin: 18px 0 12px 0;
+}
+
+
+div[data-testid="stContainer"][data-border="true"]{
+  border: 2px solid #222 !important;
+  border-radius: 0px !important;
+  background: white !important;
+  padding: 12px !important;
+  min-height: 240px;
+}
+</style>
 """, unsafe_allow_html=True)
+
+st.title("Pre Training")
+st.markdown("---")
+
+# =========================
+# 1) Load data series collections（同级标题 1）
+# =========================
+st.header("Load data series collections")
 
 current_dir = Path(DEFAULT_OUTPUT_FILE)
 st.session_state["temp_dir"] = str(current_dir)
@@ -39,8 +60,8 @@ if current_dir.exists():
 current_dir.mkdir(parents=True, exist_ok=True)
 
 uploaded_files = st.file_uploader(
-    "Upload the dataset (supporting .zip and .rar formats)",
-    type=["zip", "rar"],
+    "Upload the dataset (supporting .zip and .rar and .bin formats)",
+    type=["zip", "rar", "bin"],
     accept_multiple_files=True
 )
 
@@ -52,24 +73,30 @@ if uploaded_files:
         with open(local_file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
+        # zip/rar 解压到 current_dir；bin 只保存不解压
         if uploaded_file.name.endswith('.zip'):
             with zipfile.ZipFile(local_file_path, 'r') as zip_ref:
                 zip_ref.extractall(current_dir)
+            if local_file_path.exists():
+                local_file_path.unlink()
+
         elif uploaded_file.name.endswith('.rar'):
             with rarfile.RarFile(local_file_path, 'r') as rar_ref:
                 rar_ref.extractall(current_dir)
+            if local_file_path.exists():
+                local_file_path.unlink()
 
-        if local_file_path.exists():
-            local_file_path.unlink()
+        elif uploaded_file.name.endswith('.bin'):
+            pass
 
-if not os.listdir(current_dir):
-    st.warning("No timeseries uploaded yet. Please upload your metrics to proceed.")
-else:
-    st.success("The dataset has been uploaded and decompressed.")
+if os.listdir(current_dir):
+    st.success("The dataset has been uploaded and decompressed/saved.")
+
+st.markdown("---")
 
 
 # =========================
-# 2) 工具函数（保留原逻辑）
+# 2) 工具函数
 # =========================
 def read_log_file_basic(file_path: str) -> str:
     try:
@@ -103,40 +130,7 @@ def make_loss_df(loss_list, col_name="loss"):
 
 
 # =========================
-# 3) 样式（保留 + 右侧面板布局CSS）
-# =========================
-st.markdown("""
-<style>
-/* 页面背景 */
-.stApp { background-color: #f7f9fc; }
-h1 { font-weight: 700; }
-
-/* ===== 右侧“图中布局”的样式 ===== */
-.pretrain-panel{
-  border: 2px solid #222;
-  padding: 22px 26px;
-  background: white;
-}
-.center-btn{
-  display:flex;
-  justify-content:center;
-  margin: 18px 0 12px 0;
-}
-.curve-box{
-  border: 2px solid #222;
-  padding: 18px;
-  min-height: 220px;
-  background: white;
-}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("<h1 style='text-align:center;'>Pre training</h1>", unsafe_allow_html=True)
-st.markdown("---")
-
-
-# =========================
-# 4) 安全加载 dataset_configs（保留原逻辑）
+# 3) 安全加载 dataset_configs
 # =========================
 def load_dataset_config():
     if 'pretrain.util.dataset_configs' in sys.modules:
@@ -169,7 +163,7 @@ os.makedirs(DATA_ROOT, exist_ok=True)
 
 
 # =========================
-# 5) 主页面（右侧布局 + 新增 Mode 功能）
+# 4) 主页面逻辑
 # =========================
 if dc is None:
     st.error("Failed to load dataset configuration module, pre-training functionality is unavailable!")
@@ -189,19 +183,15 @@ else:
         else:
             config = {}
 
-        # 设置输出路径（原逻辑）
+        # 设置输出路径
         result_model_path = os.path.abspath(f"./app/pretrain/pretrain_{datetime.now().strftime('%Y%m%d_%H%M%S')}/")
         config["output_path"] = result_model_path
         config["result_path"] = result_model_path
 
-        # ===== 右侧大面板开始 =====
-        # st.markdown("<div class='pretrain-panel'>", unsafe_allow_html=True)
-
-        # ---- Block 1: Load data series collections ----
-        # st.markdown("## **Load data series collections**")
-
-        # ===== 数据集管理（原逻辑）=====
-        st.markdown("### Dataset Management")
+        # =========================
+        # Dataset Management（同级标题 2）
+        # =========================
+        st.header("Dataset Management")
 
         dataset_names = st.session_state["all_dataset_names"]
         valid_indices = [i for i in dc.SELECTED_DATASETS if isinstance(i, int) and 0 <= i < len(dc.DATASET_CONFIGS)]
@@ -456,27 +446,9 @@ else:
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Failed to delete dataset: {str(e)}")
-
-                    st.markdown("---")
-                    st.markdown("**Optional: Delete dataset files**")
-                    delete_files = st.checkbox("Also delete dataset bin files (irreversible)", key="delete_files_checkbox")
-                    if delete_files and st.button("Delete Dataset Files", key="delete_dataset_files_btn"):
-                        dataset_file = os.path.join(DATA_ROOT, f"{dataset_to_delete}_dataset.bin")
-                        query_file = os.path.join(DATA_ROOT, f"{dataset_to_delete}_query.bin")
-                        deleted_files = []
-                        if os.path.exists(dataset_file):
-                            os.remove(dataset_file)
-                            deleted_files.append(dataset_file)
-                        if os.path.exists(query_file):
-                            os.remove(query_file)
-                            deleted_files.append(query_file)
-
-                        if deleted_files:
-                            st.success(f"Deleted files: {', '.join(deleted_files)}")
-                        else:
-                            st.warning("No corresponding bin files found, no need to delete")
                 else:
                     st.info("No datasets available for deletion")
+
         if st.button("Save Dataset Selection", key="save_dataset_selection", use_container_width=True):
             dataset_config_path = dc.__file__
             try:
@@ -492,10 +464,11 @@ else:
 
         st.markdown("---")
 
-        # ---- Block 2: Model configuration（新增 mode：Load from file / Manual configuration）----
-        st.markdown("## **Model configuration**")
+        # =========================
+        # Model configuration
+        # =========================
+        st.header("Model configuration")
 
-        # ✅ 新增：二选一模式
         mode = st.selectbox(
             "Configuration mode",
             ["Load from file", "Manual configuration"],
@@ -503,11 +476,9 @@ else:
             key="cfg_mode_select"
         )
 
-        # 初始化用于“手动模式 slider”的状态（默认取 config 中已有值）
         if "manual_patch_len" not in st.session_state:
             st.session_state["manual_patch_len"] = int(config.get("patch_len", 32) or 32)
         if "manual_embed_len" not in st.session_state:
-            # 这里把 l 映射到 first_dim（你也可以改成 d_model）
             st.session_state["manual_embed_len"] = int(config.get("first_dim", 256) or 256)
 
         if mode == "Load from file":
@@ -516,34 +487,41 @@ else:
                 try:
                     loaded = json.load(up)
                     config.update(loaded)
-
-                    # 同步手动 slider 状态（可选）
                     if "patch_len" in loaded:
                         st.session_state["manual_patch_len"] = int(loaded["patch_len"])
                     if "first_dim" in loaded:
                         st.session_state["manual_embed_len"] = int(loaded["first_dim"])
-
                     st.success("Config loaded from file.")
                 except Exception as e:
                     st.error(f"Failed to load JSON: {e}")
         else:
-            # Manual configuration：展示两个 slider（你可以演示只用默认值）
             m1, m2 = st.columns(2)
             with m1:
                 P = st.slider("patch length P", 4, 512, st.session_state["manual_patch_len"], step=4)
                 st.session_state["manual_patch_len"] = P
-                # ✅ 若要连后端：写入 config（你想只展示可注释掉下一行）
                 config["patch_len"] = int(P)
-
             with m2:
                 l = st.slider("embedding length l", 16, 1024, st.session_state["manual_embed_len"], step=16)
                 st.session_state["manual_embed_len"] = l
-                # ✅ 若要连后端：把 l 映射到 first_dim（你想只展示可注释掉下一行）
                 config["first_dim"] = int(l)
+
+        st.markdown("### Configuration Preview")
+        selected_keys = [
+            'num_epoch', 'masking_ratio', 'stride', 'patch_len',
+            'd_model', 'nhead', 'num_encoder_layers', 'dim_feedforward', 'first_dim'
+        ]
+        filtered_config = {k: config.get(k, '') for k in selected_keys}
+        st.session_state["config_json_cache"] = json.dumps(filtered_config, indent=2)
+
+        config_json = st.text_area(
+            "Configuration JSON (other parameters can be edited here)",
+            value=st.session_state["config_json_cache"],
+            height=150,
+            key="train_config_json"
+        )
 
         st.markdown("---")
 
-        # GPU/模型/Decoder/课程学习（原逻辑）
         col1, col2, col3 = st.columns(3)
         with col1:
             train_gpu_id = st.text_input("GPU ID", value=config.get("gpu_id", "0"), key="train_gpu_id")
@@ -558,11 +536,7 @@ else:
             )
             config["encoder"] = selected_model
         with col3:
-            use_decoder = st.toggle(
-                "Use Decoder",
-                value=config.get("decoder", False),
-                key="use_decoder_toggle"
-            )
+            use_decoder = st.toggle("Use Decoder", value=config.get("decoder", False), key="use_decoder_toggle")
             config["decoder"] = use_decoder
 
             use_curriculum_learning = st.toggle(
@@ -576,67 +550,72 @@ else:
 
         st.markdown("---")
 
-        # ---- Block 3: Learning objective configuration ----
-        st.markdown("## **Learning objective configuration (Configure regularization coefficients)**")
+        # =========================
+        # Learning objective configuration
+        # =========================
+        st.header("Learning objective configuration (Configure regularization coefficients)")
 
-        st.markdown("### Configuration Preview")
-        selected_keys = [
-            'num_epoch', 'masking_ratio', 'stride', 'patch_len',
-            'd_model', 'nhead', 'num_encoder_layers', 'dim_feedforward', 'first_dim'
-        ]
-        filtered_config = {k: config.get(k, '') for k in selected_keys}
+        c1, c2, c3 = st.columns(3)
 
-        # ✅ 关键：用 session_state 缓存 JSON，让 load from file / manual slider 改动后立即反映
-        st.session_state["config_json_cache"] = json.dumps(filtered_config, indent=2)
+        with c1:
+            masking_ratio = st.slider(
+                "masking ratio",
+                min_value=0.0,
+                max_value=1.0,
+                value=float(config.get("masking_ratio", 0.5) or 0.5),
+                step=0.05
+            )
+           #config["masking_ratio"] = float(masking_ratio)
 
-        config_json = st.text_area(
-            "Configuration JSON (other parameters can be edited here)",
-            value=st.session_state["config_json_cache"],
-            height=150,
-            key="train_config_json"
-        )
-
-        st.markdown("### Advanced configuration parameters")
-        import numpy as np
-        adv1, adv2 = st.columns(2)
-        with adv1:
+        with c2:
             func_a_values = np.logspace(-5, 1, num=1000)
-            func_a = st.select_slider("func_a parameter", options=func_a_values, value=1e-3)
+            func_a = st.select_slider(
+                "func_a parameter",
+                options=func_a_values,
+                value=float(config.get("func_a", 1e-3) or 1e-3)
+            )
             config["func_a"] = float(func_a)
-            st.write(f"Current func_a value: {func_a:.5e}")
-        with adv2:
+            st.caption(f"{func_a:.5e}")
+
+        with c3:
             func_b_values = np.logspace(-5, 1, num=1000)
-            func_b = st.select_slider("func_b parameter", options=func_b_values, value=1e-3)
+            func_b = st.select_slider(
+                "func_b parameter",
+                options=func_b_values,
+                value=float(config.get("func_b", 1e-3) or 1e-3)
+            )
             config["func_b"] = float(func_b)
-            st.write(f"Current func_b value: {func_b:.5e}")
+            st.caption(f"{func_b:.5e}")
+
+
         st.markdown("---")
 
-        # ---- Block 4: Data series orchestration configuration ----
-        st.markdown("## **Data series orchestration configuration**")
-        # st.caption("如果你后端还没接 w/difficulty bucket，这里可先作为展示位；后端默认即可。")
+        # =========================
+        # Data series orchestration configuration
+        # =========================
+        st.header("Data series orchestration configuration")
+
         orchestration_w = st.slider("w", 1, 20, 5)
         config["w"] = int(orchestration_w)
 
-        # ---- Start pre-training（居中按钮）----
+        # =========================
+        # Start pre-training + Curves
+        # =========================
         st.markdown("<div class='center-btn'>", unsafe_allow_html=True)
         start_pretrain = st.button("Start pre-training", key="start_pretrain_btn", type="primary")
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ---- 两个曲线框 ----
         curve_left, curve_right = st.columns(2)
         with curve_left:
-            st.markdown("<div class='curve-box'>", unsafe_allow_html=True)
-            st.markdown("### Train loss curve")
-            train_curve_ph = st.empty()
-            st.markdown("</div>", unsafe_allow_html=True)
-
+            with st.container(border=True):
+                st.markdown("### Train loss curve")
+                train_curve_ph = st.empty()
         with curve_right:
-            st.markdown("<div class='curve-box'>", unsafe_allow_html=True)
-            st.markdown("### Evaluation loss curve")
-            eval_curve_ph = st.empty()
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown("### Evaluation loss curve")
+                eval_curve_ph = st.empty()
 
-        # ===== 训练逻辑（保留原逻辑）=====
+        # ===== 训练逻辑 =====
         if start_pretrain:
             # 1) 保存配置：把 text_area 的 JSON 合并进 config
             try:
@@ -649,7 +628,7 @@ else:
             except json.JSONDecodeError:
                 st.error("Invalid JSON format")
 
-            # 2) 训练命令（原逻辑）
+            # 2) 训练命令
             cmd = (
                 "cd pretrain && "
                 f"export CUDA_VISIBLE_DEVICES={train_gpu_id} && "
@@ -658,7 +637,7 @@ else:
             )
             run_shell_command(cmd, workdir="./")
 
-            # 3) 读 log → 抽 loss → 拆 train/val（原逻辑）
+            # 3) 读 log → 抽 loss → 拆 train/val
             log_path = os.path.join(result_model_path, "fit.log")
             log_content = read_log_file_basic(log_path)
             loss_list = extract_loss_values_from_log(log_content)
@@ -666,14 +645,9 @@ else:
             train_list = loss_list[0::2]
             valid_list = loss_list[1::2]
 
-            train_df = make_loss_df(train_list, col_name="train_loss")
-            valid_df = make_loss_df(valid_list, col_name="eval_loss")
+            # 4) 画图：画进 placeholder 内，保证在黑框里；没数据就保持空（只有黑框）
+            if len(train_list) > 0:
+                train_curve_ph.line_chart(pd.DataFrame({"loss": train_list}))
 
-            if len(train_df) == 0 and len(valid_df) == 0:
-                st.warning(f'The /"loss" value was not parsed from the log. Please check if the log file exists: {log_path}')
-            else:
-                train_curve_ph.line_chart(train_df)
-                eval_curve_ph.line_chart(valid_df)
-
-        # ===== 右侧大面板结束 =====
-        st.markdown("</div>", unsafe_allow_html=True)
+            if len(valid_list) > 0:
+                eval_curve_ph.line_chart(pd.DataFrame({"loss": valid_list}))

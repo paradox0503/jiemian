@@ -180,8 +180,7 @@ if "delete_confirm_temp" not in st.session_state:
 DATA_ROOT = os.path.abspath("./app/data")
 # 确保目录存在
 os.makedirs(DATA_ROOT, exist_ok=True)
-
-st.subheader("微调配置")
+####---------------------------------------------------------------------------------------------
 config_file = "conf/example.json"
 full_config_path = os.path.abspath(os.path.join("fine", config_file))
 print("ts",full_config_path)
@@ -195,57 +194,12 @@ if os.path.exists(full_config_path):
         config = {}
 else:
     config = {}
-fine_result_model_path = os.path.abspath(f"./app/fine/fine_{datetime.now().strftime('%Y%m%d_%H%M%S')}/")
-config["output_path"] = fine_result_model_path
-config["result_path"] = fine_result_model_path
-# 初始化Session State
-if "fine_model_path" not in st.session_state:
-    st.session_state["fine_model_path"] = config.get("pkl_file", "")
-if "fine_gpu_id" not in st.session_state:
-    st.session_state["fine_gpu_id"] = config.get("gpu_id", "0")
-if "fine_dim_series" not in st.session_state:
-    st.session_state["fine_dim_series"] = config.get("dim_series", 256)
-if "fine_decoder" not in st.session_state:
-    st.session_state["fine_decoder"] = config.get("decoder", "none")
-if "fine_encoder" not in st.session_state:
-    st.session_state["fine_encoder"] = config.get("encoder", "transformer")
-if "fine_epoch" not in st.session_state:
-    st.session_state["fine_epoch"] = config.get("fine_epoch", 1)
 
-# 微调配置项
-fine_model_path = st.text_input("模型路径（微调）", value=st.session_state["fine_model_path"], key="fine_model_path_input")
-config["pkl_file"] = fine_model_path
-fine_gpu_id = st.text_input("NVIDIA 卡号（微调）", value=st.session_state["fine_gpu_id"], key="fine_gpu_id_input")
-config["gpu_id"] = fine_gpu_id
-fine_dim_series = st.number_input("序列维度（微调）", value=st.session_state["fine_dim_series"], key="fine_dim_series_input")
-config["dim_series"] = fine_dim_series
-# 选择 使用Decoder或者不使用Decoder
-            # Decoder配置
-fine_use_decoder = st.toggle(
-    "是否使用 Decoder（微调）",
-    value=config.get("decoder", False),  # 键名改为decoder，匹配JSON中的"decoder": false
-    key="fine_use_decoder_toggle"
-)
-# 将切换结果赋值给config["decoder"]（键名一致）
-config["decoder"] = fine_use_decoder
-# 选择 Encoder
-fine_encoder = st.selectbox(
-    "选择 Encoder（微调）",
-    options=["transformer", "timemixer", "timesnet"],
-    index=["transformer", "timemixer", "timesnet"].index(st.session_state   ["fine_encoder"]) if st.session_state["fine_encoder"] in ["transformer", "timemixer", "timesnet"] else 0,
-    key="fine_encoder_select"
-)
-config["encoder"] = fine_encoder
-fine_epoch = st.number_input("微调轮数", value=st.session_state["fine_epoch"], key="fine_epoch_input")
-config["fine_epoch"] = fine_epoch
-
+####---------------------------------------------------------------------------------------------
+##数据集
 # 数据集选择区域
-st.markdown("---")
 st.markdown('<div class="section-title">数据集选择</div>', unsafe_allow_html=True)
-
-# 获取数据集列表
 dataset_names = st.session_state.get("all_dataset_names", [])
-
 if not dataset_names:
     st.warning("暂无可用数据集，请先在预训练模式中添加数据集！")
 else:
@@ -305,11 +259,70 @@ else:
     st.info(f"当前选中数据集：{selected_dataset} (索引：{selected_index})")
 
 st.markdown('</div>', unsafe_allow_html=True)  # 关闭卡片
+### -----------------------------------------------------------------------------------------------------
 
+st.markdown("---")
 
+####---------------------------------------------------------------------------------------------
+## 微调配置
+st.subheader("微调配置")
+fine_result_model_path = os.path.abspath(f"./app/fine/fine_{datetime.now().strftime('%Y%m%d_%H%M%S')}/")
+config["output_path"] = fine_result_model_path
+config["result_path"] = fine_result_model_path
+# 初始化Session State
+if "fine_model_path" not in st.session_state:
+    st.session_state["fine_model_path"] = config.get("pkl_file", "")
+if "fine_gpu_id" not in st.session_state:
+    st.session_state["fine_gpu_id"] = config.get("gpu_id", "0")
+if "fine_dim_series" not in st.session_state:
+    st.session_state["fine_dim_series"] = config.get("dim_series", 256)
+if "fine_decoder" not in st.session_state:
+    st.session_state["fine_decoder"] = config.get("decoder", "none")
+if "fine_encoder" not in st.session_state:
+    st.session_state["fine_encoder"] = config.get("encoder", "transformer")
+if "fine_epoch" not in st.session_state:
+    st.session_state["fine_epoch"] = config.get("fine_epoch", 1)
+
+# 微调配置项
+fine_model_path = st.text_input("模型路径（微调）", value=st.session_state["fine_model_path"], key="fine_model_path_input")
+config["pkl_file"] = fine_model_path
+fine_gpu_id = st.text_input("NVIDIA 卡号（微调）", value=st.session_state["fine_gpu_id"], key="fine_gpu_id_input")
+config["gpu_id"] = fine_gpu_id
+fine_dim_series = st.number_input("序列维度（微调）", value=st.session_state["fine_dim_series"], key="fine_dim_series_input")
+config["dim_series"] = fine_dim_series
+# 选择 使用Decoder或者不使用Decoder
+            # Decoder配置
+fine_use_decoder = st.toggle(
+    "是否使用 Decoder（微调）",
+    value=config.get("decoder", False),  # 键名改为decoder，匹配JSON中的"decoder": false
+    key="fine_use_decoder_toggle"
+)
+# 将切换结果赋值给config["decoder"]（键名一致）
+config["decoder"] = fine_use_decoder
+# 选择 Encoder
+fine_encoder = st.selectbox(
+    "选择 Encoder（微调）",
+    options=["transformer", "timemixer", "timesnet"],
+    index=["transformer", "timemixer", "timesnet"].index(st.session_state   ["fine_encoder"]) if st.session_state["fine_encoder"] in ["transformer", "timemixer", "timesnet"] else 0,
+    key="fine_encoder_select"
+)
+config["encoder"] = fine_encoder
+fine_epoch = st.number_input("微调轮数", value=st.session_state["fine_epoch"], key="fine_epoch_input")
+config["fine_epoch"] = fine_epoch
+
+button=st.button("开始微调", key="start_fine_tuning", type="primary")
 # 然后执行脚本
 # 开始微调
-if st.button("开始微调", key="start_fine_tuning"):
+curve_left, curve_right = st.columns(2)
+with curve_left:
+    with st.container(border=True):
+        st.markdown("### Train loss curve")
+        train_curve_ph = st.empty()
+with curve_right:
+    with st.container(border=True):
+        st.markdown("### Evaluation loss curve")
+        eval_curve_ph = st.empty()
+if button:
     with open(full_config_path, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2)
     # 同时更新dc中的FINE_SELECTED_DATASETS
@@ -328,6 +341,7 @@ if st.button("开始微调", key="start_fine_tuning"):
             st.error(f"更新数据集配置失败: {e}")
     else:
         st.success(f"配置已保存到 {full_config_path}")
+
     cmd = (
         "cd fine && "
         f"export CUDA_VISIBLE_DEVICES={fine_gpu_id} && "
@@ -345,6 +359,11 @@ if st.button("开始微调", key="start_fine_tuning"):
         train_list.append(loss_list[i])
     for i in range(1,len(loss_list),2):
         valid_list.append(loss_list[i])
-    plot_basic_line_chart(train_list)
-    plot_basic_line_chart(valid_list)
+    if len(train_list) > 0:
+        train_curve_ph.line_chart(pd.DataFrame({"loss": train_list}))
+    if len(valid_list) > 0:
+        eval_curve_ph.line_chart(pd.DataFrame({"loss": valid_list}))
+    # plot_basic_line_chart(train_list)
+    # plot_basic_line_chart(valid_list)
+
 

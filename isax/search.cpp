@@ -81,10 +81,10 @@ int main() {
     uint64_t query_num = std::stoi(read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 1));//+
     const uint64_t k = std::stoi(read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 2)); //+
     const string data_name = read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 3);  //+
-    static const std::string origin_input_directory = read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 4);//+
-    static const std::string origin_query_directory = origin_input_directory;
-    static const std::string embed_input_directory = read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 5);//+
-    static const std::string embed_query_directory = embed_input_directory;
+    static const std::string origin_query_directory = read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 4);
+    static const std::string origin_input_directory = origin_query_directory;//+
+    static const std::string embed_query_directory = read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 5);
+    static const std::string embed_input_directory = embed_query_directory;//+
     // 定义常量
     const string input_filename = origin_input_directory + data_name+"-dataset.bin"; // 数据集路径
     const string emb_input_filename = embed_input_directory +data_name+ "-database.bin"; // 数据集路径
