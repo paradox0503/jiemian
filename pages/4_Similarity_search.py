@@ -17,7 +17,7 @@ def modify_nth_line(file_path, n, new_content, line_start=1):
         new_content: 新的内容
         line_start: 行号起始值（默认从1开始，也可设为0）
     """
-    # 调整行号索引
+    # 调整行号搜索
     line_index = n - line_start
 
     # 读取所有行
@@ -37,23 +37,17 @@ def modify_nth_line(file_path, n, new_content, line_start=1):
         f.writelines(lines)
 
     return True
-st.set_page_config(page_title="索引模块", layout="wide")
-st.title("索引模块")
+st.set_page_config(page_title="搜索模块", layout="wide")
+st.title("搜索模块")
 
-"""Handle the search tab."""
-st.subheader("索引模块")
-# embeddings_file = st.text_input(
-#     "已有 Embeddings 文件",
-#     value="",
-#     key="embeddings_file"
-# )
+st.subheader("搜索模块")
 index_method = st.selectbox(
-    "索引算法",
+    "搜索算法",
     options=['iSAX', 'DIDS', 'Dumpy'],
     key="index_method"
 )
 if index_method=='iSAX':
-    txt_path="/data/user_jialinhan/jiemian/isax/index.txt"
+    txt_path="/data/user_jialinhan/jiemian/isax/search.txt"
     v = st.text_input("query_num",key="query_num",value="100")
     modify_nth_line(txt_path, 1, v)
     v = st.text_input("k",    key="k",value="1")
@@ -81,17 +75,11 @@ if index_method=='iSAX':
 else:
     pass
 
-
 if st.button("开始搜索", key="start_search"):
     if index_method=='iSAX':
-
         cmd = (
             f"cd /data/user_jialinhan/jiemian/isax/build && "
             f"make && "
-            f"./index "
+            f"./search "
         )
         run_shell_command(cmd, workdir="./")
-    else:
-        print("error")
-else:
-    pass

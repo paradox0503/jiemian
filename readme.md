@@ -17,7 +17,7 @@ make
 -选择./exact_isax
 
 conda activate jlh
-streamlit run home.py --server.port 8502
+streamlit run Home_page.py --server.port 8503
 
 git remote -v
 git branch

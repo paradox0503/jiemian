@@ -12,6 +12,41 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <string_view> // 需包含此头文件
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <stdexcept>
+#include <string>
+#include <stdexcept>
+std::string read_nth_line(const std::string& filename, int line_num) {
+    // 参数验证
+    if (line_num <= 0) {
+        throw std::runtime_error("行号必须大于0");
+    }
+
+    // 打开文件
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("无法打开文件: " + filename);
+    }
+
+    std::string line;
+    int current_line = 1;
+
+    // 逐行读取，直到目标行
+    while (current_line < line_num && std::getline(file, line)) {
+        current_line++;
+    }
+
+    // 读取目标行
+    if (!std::getline(file, line)) {
+        file.close();
+        throw std::runtime_error("文件只有 " + std::to_string(current_line) + " 行");
+    }
+
+    file.close();
+    return line;
+}
 using namespace std;
 
 // 函数：将搜索结果写入文件
@@ -41,19 +76,15 @@ void writeResultsToFile(size_t i,const std::string& filename, const std::vector<
     outFile.close();
 }
 
-#define DATA_NAME "astro"
-constexpr uint64_t query_num = 100;
-constexpr uint64_t ts_length = 256U;
+
 int main() {
-    const uint64_t k = 10;
-    const string data_name = DATA_NAME;  // 运行时使用宏定义初始化
-    static const std::string origin_input_directory = "/data/user_jialinhan/data_big/";
-    static const std::string origin_query_directory = "/data/user_jialinhan/data_big/";
-    static const std::string embed_input_directory = "/data/user_jialinhan/SEAnet-main-yuanban/SEAnet/";
-    static const std::string embed_query_directory = "/data/user_jialinhan/SEAnet-main-yuanban/SEAnet/";
-    // /data/user_jialinhan/Transnet-fine/fine-1
-    // static const std::string embed_input_directory = "/data/user_jialinhan/Transnet-fine/fine-1/";
-    // static const std::string embed_query_directory = "/data/user_jialinhan/Transnet-fine/fine-1/";
+    uint64_t query_num = std::stoi(read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 1));//+
+    const uint64_t k = std::stoi(read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 2)); //+
+    const string data_name = read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 3);  //+
+    static const std::string origin_input_directory = read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 4);//+
+    static const std::string origin_query_directory = origin_input_directory;
+    static const std::string embed_input_directory = read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 5);//+
+    static const std::string embed_query_directory = embed_input_directory;
     // 定义常量
     const string input_filename = origin_input_directory + data_name+"-dataset.bin"; // 数据集路径
     const string emb_input_filename = embed_input_directory +data_name+ "-database.bin"; // 数据集路径
@@ -61,7 +92,9 @@ int main() {
     const string emb_query_filename = embed_query_directory +data_name+ "-query.bin"; // 查询文件的路径
     const string output_directory = "./"+data_name+"_index/";
     const uint64_t sax_length = 16;
-    const uint64_t ts_num = 100000;
+    uint32_t source_value =std::stoi(read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 6));//+
+    const uint32_t ts_length = source_value;//
+    const uint64_t ts_num = std::stoi(read_nth_line("/data/user_jialinhan/jiemian/isax/search.txt", 7));//+
 
 
     // 加载查询数据
@@ -100,27 +133,75 @@ int main() {
     fclose(emb_query_file);
 
     // 加载 DIDS 索引
-    auto dids_index = dids::DIDSFactory<ts_length, sax_length>::createFromIndex(data_name, output_directory);
+    if(ts_length==256){
+        auto dids_index = dids::DIDSFactory<256, sax_length>::createFromIndex(data_name, output_directory);
+        vector<int32_t> search_nums = {-1};
+
+        // 对每种搜索节点数量执行搜索
+        for (int32_t search_max_num : search_nums) {
+            std::string filename_e = data_name + ".txt";
+            bool isFirstWrite = true;
+            for (size_t i = 0; i < queries.size(); ++i) {
+                string subfolder ="1stBSF";
+                mkdir(subfolder.c_str(), 0777) ;
+                const auto& query = queries[i];
+                const auto& emb_query = emb_queries[i];
+                auto appro_ans = dids_index->approximateSearch((void*)query.data(),(void*)emb_query.data(), k, 10,search_max_num);
+                // 首次写入时覆盖，之后追加
+                writeResultsToFile(i,filename_e, appro_ans, data_name, isFirstWrite);
+                // 写入一次后将标志位设为 false
+                isFirstWrite = false;
+            }
+        }
+
+        // 释放资源
+        delete dids_index;
+    }else if(ts_length==128){
+        auto dids_index = dids::DIDSFactory<128, sax_length>::createFromIndex(data_name, output_directory);
+        vector<int32_t> search_nums = {-1};
+
+        // 对每种搜索节点数量执行搜索
+        for (int32_t search_max_num : search_nums) {
+            std::string filename_e = data_name + ".txt";
+            bool isFirstWrite = true;
+            for (size_t i = 0; i < queries.size(); ++i) {
+                string subfolder ="1stBSF";
+                mkdir(subfolder.c_str(), 0777) ;
+                const auto& query = queries[i];
+                const auto& emb_query = emb_queries[i];
+                auto appro_ans = dids_index->approximateSearch((void*)query.data(),(void*)emb_query.data(), k, 10,search_max_num);
+                // 首次写入时覆盖，之后追加
+                writeResultsToFile(i,filename_e, appro_ans, data_name, isFirstWrite);
+                // 写入一次后将标志位设为 false
+                isFirstWrite = false;
+            }
+        }
+
+        // 释放资源
+        delete dids_index;
+    }else if(ts_length==96){
+        auto dids_index = dids::DIDSFactory<96, sax_length>::createFromIndex(data_name, output_directory);
     vector<int32_t> search_nums = {-1};
 
-    // 对每种搜索节点数量执行搜索
-    for (int32_t search_max_num : search_nums) {
-        std::string filename_e = data_name + ".txt";
-        bool isFirstWrite = true;
-        for (size_t i = 0; i < queries.size(); ++i) {
-            string subfolder ="1stBSF";
-            mkdir(subfolder.c_str(), 0777) ;
-            const auto& query = queries[i];
-            const auto& emb_query = emb_queries[i];
-            auto appro_ans = dids_index->approximateSearch((void*)query.data(),(void*)emb_query.data(), k, 10,search_max_num);
-            // 首次写入时覆盖，之后追加
-            writeResultsToFile(i,filename_e, appro_ans, data_name, isFirstWrite);
-            // 写入一次后将标志位设为 false
-            isFirstWrite = false;
+        // 对每种搜索节点数量执行搜索
+        for (int32_t search_max_num : search_nums) {
+            std::string filename_e = data_name + ".txt";
+            bool isFirstWrite = true;
+            for (size_t i = 0; i < queries.size(); ++i) {
+                string subfolder ="1stBSF";
+                mkdir(subfolder.c_str(), 0777) ;
+                const auto& query = queries[i];
+                const auto& emb_query = emb_queries[i];
+                auto appro_ans = dids_index->approximateSearch((void*)query.data(),(void*)emb_query.data(), k, 10,search_max_num);
+                // 首次写入时覆盖，之后追加
+                writeResultsToFile(i,filename_e, appro_ans, data_name, isFirstWrite);
+                // 写入一次后将标志位设为 false
+                isFirstWrite = false;
+            }
         }
-    }
 
-    // 释放资源
-    delete dids_index;
+        // 释放资源
+        delete dids_index;
+    }
     return 0;
 }

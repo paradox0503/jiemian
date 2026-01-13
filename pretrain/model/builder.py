@@ -52,6 +52,11 @@ class AEBuilder(nn.Module):
             self.__encoder = TimesNetEncoder(conf)
             if decoder_name:
                 self.__decoder = TimesNetDecoder(conf)
+        elif encoder_name == 'timesmixer':
+            from model.timesmixer import TimesMixerEncoder, TimesMixerDecoder
+            self.__encoder = TimesMixerEncoder(conf)
+            if decoder_name:
+                self.__decoder = TimesMixerDecoder(conf)
         else:
             raise ValueError('encoder {:s} isn\'t supported yet'.format(encoder_name))
 
