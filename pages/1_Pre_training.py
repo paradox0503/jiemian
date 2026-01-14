@@ -1,5 +1,3 @@
-
-
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -9,13 +7,17 @@ import glob
 import sys
 import re
 from datetime import datetime
+import time
+
+import subprocess
+from typing import Optional
 
 import zipfile
 import rarfile
 import shutil
 from pathlib import Path
 
-from utils import ensure_workspace, run_shell_command, display_directory_tree, DEFAULT_OUTPUT_FILE
+from utils import ensure_workspace, display_directory_tree, DEFAULT_OUTPUT_FILE,run_shell_command
 
 
 # =========================
@@ -92,11 +94,9 @@ if uploaded_files:
 if os.listdir(current_dir):
     st.success("The dataset has been uploaded and decompressed/saved.")
 
-# st.markdown("---")
-
 
 # =========================
-# 2) 工具函数
+# 2) 工具函数 - 新增实时监控功能
 # =========================
 def read_log_file_basic(file_path: str) -> str:
     try:
@@ -127,6 +127,128 @@ def make_loss_df(loss_list, col_name="loss"):
     if not loss_list:
         return pd.DataFrame({col_name: []})
     return pd.DataFrame({col_name: loss_list})
+
+
+# =========================
+# 新增：实时日志监控功能
+# =========================
+def init_monitoring_state():
+    """Initialize monitoring state"""
+    if 'train_loss_data' not in st.session_state:
+        st.session_state.train_loss_data = []
+    if 'val_loss_data' not in st.session_state:
+        st.session_state.val_loss_data = []
+    if 'log_position' not in st.session_state:
+        st.session_state.log_position = 0
+    if 'monitoring_active' not in st.session_state:
+        st.session_state.monitoring_active = False
+    if 'log_file_path' not in st.session_state:
+        st.session_state.log_file_path = None
+    if 'target_epochs' not in st.session_state:
+        st.session_state.target_epochs = None
+    if 'training_started' not in st.session_state:
+        st.session_state.training_started = False
+
+def parse_loss_line(line):
+    """Parse log line to extract training and validation loss"""
+    # Training loss pattern: t1 loss = 0.2109
+    train_match = re.search(r't(\d+)\s+loss\s*=\s*([\d.]+)', line)
+    if train_match:
+        return {
+            'type': 'train',
+            'task': int(train_match.group(1)),
+            'value': float(train_match.group(2)),
+            'timestamp': datetime.now()
+        }
+
+    # Validation loss pattern: v1 loss = 0.1318
+    val_match = re.search(r'v(\d+)\s+loss\s*=\s*([\d.]+)', line)
+    if val_match:
+        return {
+            'type': 'val',
+            'task': int(val_match.group(1)),
+            'value': float(val_match.group(2)),
+            'timestamp': datetime.now()
+        }
+
+    return None
+
+def read_incremental_log(file_path, last_position):
+    """Read incremental log file"""
+    if not os.path.exists(file_path):
+        return [], last_position
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            f.seek(last_position)
+            new_content = f.read()
+            new_lines = new_content.strip().split('\n') if new_content else []
+            return new_lines, f.tell()
+    except Exception:
+        return [], last_position
+
+def update_loss_data():
+    """Update loss data from log file"""
+    if not st.session_state.log_file_path:
+        return False
+
+    # Check if log file exists
+    if not os.path.exists(st.session_state.log_file_path):
+        return False
+
+    # Read new log lines
+    new_lines, new_position = read_incremental_log(
+        st.session_state.log_file_path,
+        st.session_state.log_position
+    )
+
+    if not new_lines:
+        st.session_state.log_position = new_position
+        return False
+
+    # Parse new log lines
+    for line in new_lines:
+        loss_info = parse_loss_line(line)
+        if loss_info:
+            if loss_info['type'] == 'train':
+                st.session_state.train_loss_data.append({
+                    'epoch': len(st.session_state.train_loss_data) + 1,
+                    'loss': loss_info['value'],
+                    'task': loss_info['task']
+                })
+            else:
+                st.session_state.val_loss_data.append({
+                    'epoch': len(st.session_state.val_loss_data) + 1,
+                    'loss': loss_info['value'],
+                    'task': loss_info['task']
+                })
+
+    st.session_state.log_position = new_position
+    return True
+
+def start_monitoring(log_path, target_epochs=None):
+    """Start monitoring log file"""
+    st.session_state.log_file_path = log_path
+    st.session_state.log_position = 0
+    st.session_state.train_loss_data = []
+    st.session_state.val_loss_data = []
+    st.session_state.monitoring_active = True
+    st.session_state.target_epochs = target_epochs
+    st.session_state.training_started = True
+
+def should_stop_monitoring():
+    """Check if monitoring should stop based on validation loss points"""
+    if not st.session_state.target_epochs:
+        return False
+
+    # Check if validation loss points reached target epochs
+    if len(st.session_state.val_loss_data) >= st.session_state.target_epochs:
+        return True
+
+    return False
+
+# 初始化监控状态
+init_monitoring_state()
 
 
 # =========================
@@ -605,7 +727,7 @@ else:
         config["w"] = int(orchestration_w)
 
         # =========================
-        # Start pre-training + Curves
+        # Start pre-training + 实时曲线
         # =========================
         st.markdown("---")
         st.markdown("<div class='center-btn'>", unsafe_allow_html=True)
@@ -631,7 +753,7 @@ else:
                 os.makedirs(os.path.dirname(full_config_path), exist_ok=True)
                 with open(full_config_path, 'w', encoding='utf-8') as f:
                     json.dump(config, f, indent=2)
-                st.success(f"Configuration has been updated and saved to {full_config_path}")
+                # st.success(f"Configuration has been updated and saved to {full_config_path}")
             except json.JSONDecodeError:
                 st.error("Invalid JSON format")
 
@@ -642,19 +764,71 @@ else:
                 f"python run.py -C {config_file} && "
                 "cd .."
             )
+
+            # 3) 设置日志路径
+            log_path = os.path.join(result_model_path, "fit.log")
+
+            # 4) 获取目标epoch数
+            target_epochs = config.get("num_epoch")
+            if not target_epochs:
+                target_epochs = 100  # 默认值
+
+            # 5) 开始监控日志文件
+            start_monitoring(log_path, target_epochs)
+
+            # 6) 运行训练命令（异步，不等待完成）
             run_shell_command(cmd, workdir="./")
 
-            # 3) 读 log → 抽 loss → 拆 train/val
-            log_path = os.path.join(result_model_path, "fit.log")
-            log_content = read_log_file_basic(log_path)
-            loss_list = extract_loss_values_from_log(log_content)
+            # 7) 显示初始消息
+            train_curve_ph.info(f"Training started. Target epochs: {target_epochs}. Monitoring log file...")
+            eval_curve_ph.info(f"Training started. Target epochs: {target_epochs}. Monitoring log file...")
 
-            train_list = loss_list[0::2]
-            valid_list = loss_list[1::2]
+        # ===== 实时更新图表 =====
+        # 如果监控已激活，更新数据并绘制图表
+        if st.session_state.monitoring_active:
+            # 更新损失数据
+            data_updated = update_loss_data()
 
-            # 4) 画图：画进 placeholder 内，保证在黑框里；没数据就保持空（只有黑框）
-            if len(train_list) > 0:
-                train_curve_ph.line_chart(pd.DataFrame({"loss": train_list}))
+            # 绘制训练损失曲线
+            if st.session_state.train_loss_data:
+                train_df = pd.DataFrame(st.session_state.train_loss_data)
+                train_curve_ph.line_chart(train_df[['loss']])
+            else:
+                # 检查日志文件是否存在
+                if (st.session_state.log_file_path and
+                    os.path.exists(st.session_state.log_file_path)):
+                    train_curve_ph.info("Log file exists. Waiting for training loss data...")
+                else:
+                    train_curve_ph.info("Log file not yet generated. Waiting...")
 
-            if len(valid_list) > 0:
-                eval_curve_ph.line_chart(pd.DataFrame({"loss": valid_list}))
+            # 绘制验证损失曲线
+            if st.session_state.val_loss_data:
+                val_df = pd.DataFrame(st.session_state.val_loss_data)
+                eval_curve_ph.line_chart(val_df[['loss']])
+
+                # 显示验证损失点数和目标
+                # current_val_points = len(st.session_state.val_loss_data)
+                # target_epochs = st.session_state.target_epochs or 100
+                # eval_curve_ph.caption(f"Validation points: {target_epochs}")
+            else:
+                # 检查日志文件是否存在
+                if (st.session_state.log_file_path and
+                    os.path.exists(st.session_state.log_file_path)):
+                    eval_curve_ph.info("Log file exists. Waiting for validation loss data...")
+                else:
+                    eval_curve_ph.info("Log file not yet generated. Waiting...")
+
+            # 检查是否应该停止监控
+            if should_stop_monitoring():
+                st.session_state.monitoring_active = False
+                # train_curve_ph.success(f"Training monitoring stopped. Target epochs reached!")
+                # eval_curve_ph.success(f"Training monitoring stopped. Target epochs reached!")
+            else:
+                # 设置自动刷新（5秒间隔）
+                time.sleep(10)
+                st.rerun()
+        else:
+            # 显示初始状态
+            if not start_pretrain and not st.session_state.training_started:
+                train_curve_ph.info("Click 'Start pre-training' to begin training and monitoring.")
+                eval_curve_ph.info("Click 'Start pre-training' to begin training and monitoring.")

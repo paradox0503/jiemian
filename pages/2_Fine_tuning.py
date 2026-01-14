@@ -9,6 +9,7 @@ import sys
 import json
 import re
 from datetime import datetime
+import time
 
 import pandas as pd
 import streamlit as st
@@ -40,6 +41,128 @@ def extract_loss_values_from_log(log_content: str):
         except ValueError:
             continue
     return out
+
+
+# =========================
+# 新增：实时监控功能
+# =========================
+def init_fine_monitoring_state():
+    """初始化fine-tuning监控状态"""
+    if 'fine_train_loss_data' not in st.session_state:
+        st.session_state.fine_train_loss_data = []
+    if 'fine_val_loss_data' not in st.session_state:
+        st.session_state.fine_val_loss_data = []
+    if 'fine_log_position' not in st.session_state:
+        st.session_state.fine_log_position = 0
+    if 'fine_monitoring_active' not in st.session_state:
+        st.session_state.fine_monitoring_active = False
+    if 'fine_log_file_path' not in st.session_state:
+        st.session_state.fine_log_file_path = None
+    if 'fine_target_epochs' not in st.session_state:
+        st.session_state.fine_target_epochs = None
+    if 'fine_training_started' not in st.session_state:
+        st.session_state.fine_training_started = False
+
+def parse_fine_loss_line(line):
+    """解析日志行，提取训练和验证损失"""
+    # 训练损失模式: t1 loss = 0.2109
+    train_match = re.search(r't(\d+)\s+loss\s*=\s*([\d.]+)', line)
+    if train_match:
+        return {
+            'type': 'train',
+            'task': int(train_match.group(1)),
+            'value': float(train_match.group(2)),
+            'timestamp': datetime.now()
+        }
+
+    # 验证损失模式: v1 loss = 0.1318
+    val_match = re.search(r'v(\d+)\s+loss\s*=\s*([\d.]+)', line)
+    if val_match:
+        return {
+            'type': 'val',
+            'task': int(val_match.group(1)),
+            'value': float(val_match.group(2)),
+            'timestamp': datetime.now()
+        }
+
+    return None
+
+def read_fine_incremental_log(file_path, last_position):
+    """增量读取日志文件"""
+    if not os.path.exists(file_path):
+        return [], last_position
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            f.seek(last_position)
+            new_content = f.read()
+            new_lines = new_content.strip().split('\n') if new_content else []
+            return new_lines, f.tell()
+    except Exception:
+        return [], last_position
+
+def update_fine_loss_data():
+    """更新损失数据"""
+    if not st.session_state.fine_log_file_path:
+        return False
+
+    # 检查日志文件是否存在
+    if not os.path.exists(st.session_state.fine_log_file_path):
+        return False
+
+    # 读取新的日志行
+    new_lines, new_position = read_fine_incremental_log(
+        st.session_state.fine_log_file_path,
+        st.session_state.fine_log_position
+    )
+
+    if not new_lines:
+        st.session_state.fine_log_position = new_position
+        return False
+
+    # 解析新的日志行
+    for line in new_lines:
+        loss_info = parse_fine_loss_line(line)
+        if loss_info:
+            if loss_info['type'] == 'train':
+                st.session_state.fine_train_loss_data.append({
+                    'epoch': len(st.session_state.fine_train_loss_data) + 1,
+                    'loss': loss_info['value'],
+                    'task': loss_info['task']
+                })
+            else:
+                st.session_state.fine_val_loss_data.append({
+                    'epoch': len(st.session_state.fine_val_loss_data) + 1,
+                    'loss': loss_info['value'],
+                    'task': loss_info['task']
+                })
+
+    st.session_state.fine_log_position = new_position
+    return True
+
+def start_fine_monitoring(log_path, target_epochs=None):
+    """开始监控日志文件"""
+    st.session_state.fine_log_file_path = log_path
+    st.session_state.fine_log_position = 0
+    st.session_state.fine_train_loss_data = []
+    st.session_state.fine_val_loss_data = []
+    st.session_state.fine_monitoring_active = True
+    st.session_state.fine_target_epochs = target_epochs
+    st.session_state.fine_training_started = True
+
+def should_stop_fine_monitoring():
+    """检查是否应该停止监控"""
+    if not st.session_state.fine_target_epochs:
+        return False
+
+    # 检查验证损失点数是否达到目标epochs
+    if len(st.session_state.fine_val_loss_data) >= st.session_state.fine_target_epochs:
+        return True
+
+    return False
+
+# 初始化监控状态
+init_fine_monitoring_state()
 
 
 # =========================
@@ -164,13 +287,8 @@ if "fine_model_path" not in st.session_state:
 # )
 fine_model_path = st.selectbox(
     "Model checkpoint path (.pkl / .pt etc.)",
-    options=["app/pretrain/pretrain_20260112_152524/pretrain.pkl",
-    "app/pretrain/pretrain_20260113_173401/pretrain.pkl",
-    "app/pretrain/pretrain_20260113_173407/pretrain.pkl",
-    "app/pretrain/pretrain_20260113_210143/pretrain.pkl",
-    "app/pretrain/pretrain_20260113_214518/pretrain.pkl",
-    "app/pretrain/pretrain_20260113_230351/pretrain.pkl",
-    "app/pretrain/pretrain_20260114_110111/pretrain.pkl"],
+    options=["app/pretrain/pretrain_20260114_183922/pretrain.pkl",
+    "app/pretrain/pretrain_20260114_184259/pretrain.pkl"],
     index=0,
     key="fine_model_path_input",
 )
@@ -262,12 +380,12 @@ with curve_right:
 # Run fine-tuning
 # =========================
 if start_finetune:
-    # 2) save fine config to fine/conf/example.json
+    # 1) 保存配置到文件
     os.makedirs(os.path.dirname(full_config_path), exist_ok=True)
     with open(full_config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
 
-    # 3) update dataset_configs.py with FINE_SELECTED_DATASETS index (keep your original behavior)
+    # 2) 更新dataset_configs.py中的FINE_SELECTED_DATASETS
     if (dc is not None) and (selected_index is not None):
         dataset_config_path = dc.__file__
         try:
@@ -277,30 +395,77 @@ if start_finetune:
             new_content = re.sub(r"FINE_SELECTED_DATASETS\s*=\s*\[.*?\]", new_line, content, flags=re.DOTALL)
             with open(dataset_config_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
-            # st.success("Updated FINE_SELECTED_DATASETS in dataset_configs.py")
         except Exception as e:
             st.error(f"Failed to update dataset_configs.py: {e}")
 
-    # 4) run fine-tuning script
-    with st.status("training...", expanded=True) as status:
-        cmd = f"""
-        cd fine
-        export CUDA_VISIBLE_DEVICES={config.get('gpu_id', fine_gpu_id)}
-        export PYTHONPATH=/data/user_jialinhan/jiemian:$PYTHONPATH
-        python /data/user_jialinhan/jiemian/fine/run.py -C {config_file}
-        cd ..
-        """
-
-        run_shell_command(cmd, workdir="./")
-    # 5) read log and plot curves INSIDE the black boxes
+    # 3) 设置日志路径
     log_path = os.path.join(fine_result_model_path, "fit.log")
-    log_content = read_log_file_basic(log_path)
-    loss_list = extract_loss_values_from_log(log_content)
 
-    train_list = loss_list[0::2]
-    valid_list = loss_list[1::2]
+    # 4) 获取目标epoch数
+    target_epochs = config.get("fine_epoch", fine_epoch)
+    if not target_epochs:
+        target_epochs = 1  # 默认值
 
-    if len(train_list) > 0:
-        train_curve_ph.line_chart(pd.DataFrame({"loss": train_list}))
-    if len(valid_list) > 0:
-        eval_curve_ph.line_chart(pd.DataFrame({"loss": valid_list}))
+    # 5) 开始监控日志文件
+    start_fine_monitoring(log_path, target_epochs)
+
+    # 6) 运行fine-tuning命令
+    cmd = f"""
+    cd fine
+    export CUDA_VISIBLE_DEVICES={config.get('gpu_id', fine_gpu_id)}
+    export PYTHONPATH=/data/user_jialinhan/jiemian:$PYTHONPATH
+    python /data/user_jialinhan/jiemian/fine/run.py -C {config_file}
+    cd ..
+    """
+
+    run_shell_command(cmd, workdir="./")
+
+    # 7) 显示初始消息
+    train_curve_ph.info(f"Fine-tuning started. Target epochs: {target_epochs}. Monitoring log file...")
+    eval_curve_ph.info(f"Fine-tuning started. Target epochs: {target_epochs}. Monitoring log file...")
+
+
+# =========================
+# 实时更新图表
+# =========================
+# 如果监控已激活，更新数据并绘制图表
+if st.session_state.fine_monitoring_active:
+    # 更新损失数据
+    data_updated = update_fine_loss_data()
+
+    # 绘制训练损失曲线
+    if st.session_state.fine_train_loss_data:
+        train_df = pd.DataFrame(st.session_state.fine_train_loss_data)
+        train_curve_ph.line_chart(train_df[['loss']])
+    else:
+        # 检查日志文件是否存在
+        if (st.session_state.fine_log_file_path and
+            os.path.exists(st.session_state.fine_log_file_path)):
+            train_curve_ph.info("Log file exists. Waiting for training loss data...")
+        else:
+            train_curve_ph.info("Log file not yet generated. Waiting...")
+
+    # 绘制验证损失曲线
+    if st.session_state.fine_val_loss_data:
+        val_df = pd.DataFrame(st.session_state.fine_val_loss_data)
+        eval_curve_ph.line_chart(val_df[['loss']])
+    else:
+        # 检查日志文件是否存在
+        if (st.session_state.fine_log_file_path and
+            os.path.exists(st.session_state.fine_log_file_path)):
+            eval_curve_ph.info("Log file exists. Waiting for validation loss data...")
+        else:
+            eval_curve_ph.info("Log file not yet generated. Waiting...")
+
+    # 检查是否应该停止监控
+    if should_stop_fine_monitoring():
+        st.session_state.fine_monitoring_active = False
+    else:
+        # 设置自动刷新（10秒间隔）
+        time.sleep(10)
+        st.rerun()
+else:
+    # 显示初始状态
+    if not start_finetune and not st.session_state.fine_training_started:
+        train_curve_ph.info("Click 'Start fine-tuning' to begin training and monitoring.")
+        eval_curve_ph.info("Click 'Start fine-tuning' to begin training and monitoring.")
