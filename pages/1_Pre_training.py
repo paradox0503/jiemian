@@ -158,7 +158,7 @@ if "all_dataset_names" not in st.session_state:
 if "delete_confirm_temp" not in st.session_state:
     st.session_state["delete_confirm_temp"] = False
 
-DATA_ROOT = os.path.abspath("./app/data")
+DATA_ROOT = os.path.abspath("./app/data/")
 os.makedirs(DATA_ROOT, exist_ok=True)
 
 
@@ -210,6 +210,7 @@ else:
             with st.expander("Add New Dataset", expanded=False):
                 name_to_paths = {}
                 all_files = [f for f in os.listdir(DATA_ROOT) if os.path.isfile(os.path.join(DATA_ROOT, f))]
+                print(DATA_ROOT, all_files)
                 dataset_files = [f for f in all_files if f.endswith("_dataset.bin")]
                 query_files = [f for f in all_files if f.endswith("_query.bin")]
 
