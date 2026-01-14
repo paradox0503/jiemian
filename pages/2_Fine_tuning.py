@@ -157,9 +157,21 @@ st.header("Load model")
 if "fine_model_path" not in st.session_state:
     st.session_state["fine_model_path"] = config.get("pkl_file", "")
 
-fine_model_path = st.text_input(
+# fine_model_path = st.text_input(
+#     "Model checkpoint path (.pkl / .pt etc.)",
+#     value="app/pretrain/**/pretrain.pkl",
+#     key="fine_model_path_input",
+# )
+fine_model_path = st.selectbox(
     "Model checkpoint path (.pkl / .pt etc.)",
-    value="app/pretrain/**/pretrain.pkl",
+    options=["app/pretrain/pretrain_20260112_152524/pretrain.pkl",
+    "app/pretrain/pretrain_20260113_173401/pretrain.pkl",
+    "app/pretrain/pretrain_20260113_173407/pretrain.pkl",
+    "app/pretrain/pretrain_20260113_210143/pretrain.pkl",
+    "app/pretrain/pretrain_20260113_214518/pretrain.pkl",
+    "app/pretrain/pretrain_20260113_230351/pretrain.pkl",
+    "app/pretrain/pretrain_20260114_110111/pretrain.pkl"],
+    index=0,
     key="fine_model_path_input",
 )
 config["pkl_file"] = "/data/user_jialinhan/jiemian/"+fine_model_path

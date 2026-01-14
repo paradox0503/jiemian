@@ -55,9 +55,9 @@ st.header("Load data series collections")
 current_dir = Path(DEFAULT_OUTPUT_FILE)
 st.session_state["temp_dir"] = str(current_dir)
 
-if current_dir.exists():
-    shutil.rmtree(current_dir)
-current_dir.mkdir(parents=True, exist_ok=True)
+# if current_dir.exists():
+#     shutil.rmtree(current_dir)
+# current_dir.mkdir(parents=True, exist_ok=True)
 
 uploaded_files = st.file_uploader(
     "Upload the dataset (supporting .zip and .rar and .bin formats)",
@@ -233,23 +233,23 @@ else:
                     query_path = query_path_map.get(name, "")
                     name_to_paths[name] = (dataset_path, query_path)
 
-                selected_name = st.selectbox(
-                    "Dataset Name (showing only bin file prefixes in ./app/data)",
-                    options=[""] + name_options,
-                    key="new_dataset_name_select",
-                    on_change=lambda: st.session_state.update({
-                        "dataset_name_selected": st.session_state["new_dataset_name_select"],
-                        "dataset_path_selected": name_to_paths.get(st.session_state["new_dataset_name_select"], ("", ""))[0],
-                        "query_path_selected": name_to_paths.get(st.session_state["new_dataset_name_select"], ("", ""))[1]
-                    })
-                )
+                # selected_name = st.selectbox(
+                #     "Dataset Name (showing only bin file prefixes in ./app/data)",
+                #     options=["astro","deep1b","sald"] + name_options,
+                #     key="new_dataset_name_select",
+                #     on_change=lambda: st.session_state.update({
+                #         "dataset_name_selected": st.session_state["new_dataset_name_select"],
+                #         "dataset_path_selected": name_to_paths.get(st.session_state["new_dataset_name_select"], ("", ""))[0],
+                #         "query_path_selected": name_to_paths.get(st.session_state["new_dataset_name_select"], ("", ""))[1]
+                #     })
+                # )
 
-                if selected_name == "":
-                    manual_name = st.text_input("Manually enter dataset name", key="manual_dataset_name")
-                    final_name = manual_name
-                else:
-                    final_name = selected_name
-                    st.session_state["dataset_name_selected"] = final_name
+                # if selected_name == "":
+                manual_name = st.text_input("Dataset Name", key="manual_dataset_name")
+                final_name = manual_name
+                # else:
+                #     final_name = selected_name
+                #     st.session_state["dataset_name_selected"] = final_name
 
                 bin_files = glob.glob(os.path.join(DATA_ROOT, "*.bin"))
                 bin_file_names = [os.path.basename(f) for f in bin_files]
@@ -269,16 +269,16 @@ else:
 
                 dataset_file_selector = st.selectbox(
                     "Select Dataset File (xxx_dataset.bin)",
-                    options=[""] + dataset_bin_files,
+                    options=["1_dataset.bin"] + dataset_bin_files,
                     key="dataset_file_selector",
                     index=default_dataset_idx
                 )
 
-                if dataset_file_selector != "":
-                    dataset_path = bin_file_map[dataset_file_selector]
-                    st.session_state["dataset_path_selected"] = dataset_path
-                else:
-                    dataset_path = ""
+                # if dataset_file_selector != "":
+                #     dataset_path = bin_file_map[dataset_file_selector]
+                #     st.session_state["dataset_path_selected"] = dataset_path
+                # else:
+                #     dataset_path = ""
 
                 st.markdown("---")
                 st.markdown("**Query File Selection (only _query.bin files within ./app/data can be selected)**")
@@ -291,25 +291,28 @@ else:
 
                 query_file_selector = st.selectbox(
                     "Select Query File (xxx_query.bin)",
-                    options=[""] + query_bin_files,
+                    options=["1_query.bin"] + query_bin_files,
                     key="query_file_selector",
                     index=default_query_idx
                 )
 
-                if query_file_selector != "":
-                    query_path = bin_file_map[query_file_selector]
-                    st.session_state["query_path_selected"] = query_path
-                else:
-                    query_path = ""
+                # if query_file_selector != "":
+                #     query_path = bin_file_map[query_file_selector]
+                #     st.session_state["query_path_selected"] = query_path
+                # else:
+                #     query_path = ""
 
                 new_size_query = st.number_input("Query Size", value=1000, key="new_size_query")
                 new_dim_seq = st.number_input("Sequence Dimension", value=256, key="new_dim_seq")
+                dataset_path='/data/user_jialinhan/jiemian/app/data/1_dataset.bin'
+                query_path='/data/user_jialinhan/jiemian/app/data/1_query.bin'
 
                 if st.button("Add New Dataset", key="add_new_dataset", use_container_width=True):
                     if not final_name:
                         st.error("Please enter/select a dataset name!")
                     elif not dataset_path:
-                        st.error("Please select a dataset file (xxx_dataset.bin)!")
+                        # st.error("Please select a dataset file (xxx_dataset.bin)!")
+                        dataset_path='/data/user_jialinhan/jiemian/app/data/1_dataset.bin'
                     else:
                         if not dataset_path.startswith(DATA_ROOT):
                             st.error(f"Dataset path must be under the {DATA_ROOT} directory!")
@@ -361,7 +364,8 @@ else:
                                     f.write(content)
 
                                 st.session_state["all_dataset_names"].append(final_name)
-                                st.success(f"New dataset '{final_name}' has been successfully added! Absolute path written: {dataset_path}")
+                                st.success(f"New dataset '{final_name}' has been successfully added!")
+                                # st.success(f"New dataset '{final_name}' has been successfully added! Absolute path written: {dataset_path}")
 
                                 st.session_state["dataset_name_selected"] = ""
                                 st.session_state["dataset_path_selected"] = ""

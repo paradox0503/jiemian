@@ -31,6 +31,7 @@ DATASET_CONFIGS = [
     DatasetConfig("sald", "/data/user_jialinhan/process_data_get_record/build/data/sald-dataset.bin", 128, size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name=5),
     DatasetConfig("seismic", "/data/user_jialinhan/process_data_get_record/build/data/seismic-dataset.bin", 256, size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name=6),
     DatasetConfig("two", "/data/user_jialinhan/jiemian/app/data/two_dataset.bin", 256, size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name=7),
+    DatasetConfig("1", "/data/user_jialinhan/jiemian/app/data/1_dataset.bin", 256, size_train=conf_size_train, size_val=conf_size_val, size_db=conf_size_db, index_name=8)
 ]# DATASET_CONFIGS
 embed_CONFIGS = [
     EmbedConfig("astro", "data_big/astro-dataset.bin", "data_big/astro-query.bin", 256, 100,query_index_name=0),
@@ -41,7 +42,8 @@ embed_CONFIGS = [
     EmbedConfig("sald", "data_big/sald-dataset.bin", "data_big/sald-query.bin", 128, 1000,query_index_name=5),
     EmbedConfig("seismic", "data_big/seismic-dataset.bin", "data_big/seismic-query.bin", 256, 1000,query_index_name=6),
     EmbedConfig("two", "/data/user_jialinhan/jiemian/app/data/two_dataset.bin", "/data/user_jialinhan/jiemian/app/data/two_query.bin", "256", "1000", query_index_name=7),
+    EmbedConfig("1", "/data/user_jialinhan/jiemian/app/data/1_dataset.bin", "/data/user_jialinhan/jiemian/app/data/1_query.bin", "256", "1000", query_index_name=8)
 ]# embed_CONFIGS
 # Selected datasets for training
 SELECTED_DATASETS = [0, 4, 2, 3]
-FINE_SELECTED_DATASETS = [0]
+FINE_SELECTED_DATASETS = [0, 4, 2, 3]

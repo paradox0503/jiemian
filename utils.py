@@ -63,21 +63,23 @@ def run_shell_command(cmd: str, workdir: Optional[str] = None) -> None:
     """Run a shell command and display output in Streamlit."""
     # st.write(f"运行命令: `{cmd}`")
     try:
-        process = subprocess.Popen(
+        process = subprocess.run(
             cmd,
             shell=True,
             cwd=workdir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             text=True,
-            executable="/bin/bash"
+            executable="/bin/bash",
+            check=False
         )
-        output_container = st.empty()
-        logs = ""
-        for line in process.stdout:
-            logs += line
-            output_container.text_area("log output", logs, height=300)
-        process.wait()
+        # output_container = st.empty()
+        # logs = ""
+        # for line in process.stdout:
+        #     logs += line
+        #     # output_container.text_area("log output", logs, height=300)
+        #     log_placeholder.code(logs, language="bash")
+        # process.wait()
         if process.returncode == 0:
             st.success("success")
         else:
